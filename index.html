@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>3-Agent Stock Hunter</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#050a14;min-height:100vh;font-family:'Noto Sans Thai','Sarabun',sans-serif}
+  @keyframes scanline{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:4px}
+  textarea{resize:vertical}
+  button:hover{filter:brightness(1.15)}
+  @media(max-width:480px){
+    h1{font-size:20px!important}
+    textarea{font-size:16px!important;min-height:80px!important}
+    input[type="password"],input[type="text"]{font-size:16px!important}
+    .main-wrap{padding:14px 12px!important}
+    .run-btn{width:100%;padding:14px 20px!important;font-size:14px!important}
+    .agent-card{padding:14px 14px!important}
+    .config-panel{padding:12px 12px!important}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState, useRef} = React;
+
+const MODEL        = "gemini-1.5-flash";
+const GEMINI_STREAM = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse`;
+const HISTORY_KEY  = "stock_history_v2";
+
+const AGENTS = {
+  chayakorn: {name:"ชยกร",  role:"นักคัดกรองหุ้น",   emoji:"🔍", color:"#00d4ff", bg:"rgba(0,212,255,0.08)",  border:"rgba(0,212,255,0.3)"},
+  watsaran:  {name:"วศรัญ", role:"นักวิเคราะห์ข่าว", emoji:"📰", color:"#f59e0b", bg:"rgba(245,158,11,0.08)", border:"rgba(245,158,11,0.3)"},
+  boss:      {name:"บอส ฒ", role:"ผู้ฟันธง",          emoji:"⚡", color:"#ff4d6d", bg:"rgba(255,77,109,0.08)", border:"rgba(255,77,109,0.3)"},
+};
+
+function extractSymbols(text){
+  const found = [...text.matchAll(/\*\*([A-Z0-9\-\.]{2,10})\*\*/g)].map(m=>m[1]);
+  return [...new Set(found)];
+}
+
+function parseStocks(raw){
+  return raw.split("\n").map(l=>l.trim()).filter(Boolean)
+    .map(l=>{ const m=l.match(/^([A-Z0-9\-\.]+)\s+([\d\.]+)/); return m?{s:m[1],p:parseFloat(m[2])}:null; })
+    .filter(Boolean);
+}
+
+async function streamGemini(apiKey, system, user, onChunk, maxTok=900){
+  const r = await fetch(GEMINI_STREAM, {
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-goog-api-key":apiKey},
+    body: JSON.stringify({
+      systemInstruction:{parts:[{text:system}]},
+      contents:[{role:"user",parts:[{text:user}]}],
+      generationConfig:{maxOutputTokens:maxTok},
+    }),
+  });
+  if(!r.ok){
+    let msg = "HTTP "+r.status;
+    try{ const d=await r.json(); msg=d.error?.message||msg; }catch{}
+    throw new Error(msg);
+  }
+  const reader  = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf="", full="";
+  while(true){
+    const {done,value} = await reader.read();
+    if(done) break;
+    buf += decoder.decode(value,{stream:true});
+    const lines = buf.split("\n");
+    buf = lines.pop();
+    for(const line of lines){
+      if(!line.startsWith("data: ")) continue;
+      try{
+        const chunk = JSON.parse(line.slice(6));
+        const txt   = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        full += txt;
+        onChunk(full);
+      }catch{}
+    }
+  }
+  return full.trim() || "⚠️ ไม่มีผลลัพธ์";
+}
+
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]"); }catch{ return []; } }
+function saveHistory(dateStr, boss){
+  const h = loadHistory();
+  h.unshift({dateStr, boss, ts:Date.now()});
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0,7)));
+}
+
+function Cursor(){ return <span style={{display:"inline-block",width:7,height:13,background:"rgba(255,255,255,0.6)",marginLeft:1,verticalAlign:"middle",animation:"blink 0.8s step-end infinite"}}/>; }
+
+function Dots({color}){
+  return <div style={{display:"flex",gap:4}}>
+    {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:color,animation:`bounce 0.8s ease-in-out ${i*0.15}s infinite`}}/>)}
+  </div>;
+}
+
+function AgentCard({ag,status,output,step,onCopy,copied}){
+  const isRun=status==="running", isDone=status==="done", isPend=status==="pending";
+  return(
+    <div className="agent-card" style={{background:ag.bg,borderRadius:16,padding:"18px 22px",marginBottom:14,
+      border:`1px solid ${isDone||isRun?ag.border:"rgba(255,255,255,0.07)"}`,
+      opacity:isPend?0.4:1,transition:"all 0.4s",position:"relative",overflow:"hidden"}}>
+      {isRun&&<div style={{position:"absolute",top:0,left:0,right:0,height:2,
+        background:`linear-gradient(90deg,transparent,${ag.color},transparent)`,
+        animation:"scanline 1.5s linear infinite"}}/>}
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:output?10:0}}>
+        <div style={{width:40,height:40,borderRadius:"50%",background:`${ag.color}22`,
+          border:`1.5px solid ${ag.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,
+          boxShadow:isDone||isRun?`0 0 10px ${ag.color}55`:"none"}}>{ag.emoji}</div>
+        <div>
+          <div style={{color:ag.color,fontWeight:700,fontSize:14}}>Agent {step}: {ag.name}</div>
+          <div style={{color:"rgba(255,255,255,0.35)",fontSize:11,fontFamily:"monospace"}}>{ag.role}</div>
+        </div>
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+          {isDone&&onCopy&&<button onClick={onCopy} style={{
+            background:copied?"rgba(74,222,128,0.15)":"rgba(255,255,255,0.06)",
+            border:copied?"1px solid rgba(74,222,128,0.4)":"1px solid rgba(255,255,255,0.12)",
+            color:copied?"#4ade80":"rgba(255,255,255,0.5)",borderRadius:6,
+            padding:"3px 9px",fontSize:11,cursor:"pointer",transition:"all 0.2s"}}>
+            {copied?"✓ copied":"copy"}
+          </button>}
+          {isRun&&<Dots color={ag.color}/>}
+          {isDone&&<span style={{color:"#4ade80",fontSize:18}}>✓</span>}
+          {isPend&&<span style={{color:"rgba(255,255,255,0.15)",fontSize:16}}>○</span>}
+        </div>
+      </div>
+      {output&&<div style={{background:"rgba(0,0,0,0.35)",borderRadius:10,padding:"12px 14px",
+        fontSize:13.5,lineHeight:1.85,color:"rgba(255,255,255,0.88)",whiteSpace:"pre-wrap",
+        maxHeight:300,overflowY:"auto"}}>
+        {output}{isRun&&<Cursor/>}
+      </div>}
+    </div>
+  );
+}
+
+function Pill({s,color}){
+  return <span title={`฿${s.p}`} style={{background:`${color}10`,border:`1px solid ${color}28`,color,
+    borderRadius:5,padding:"1px 6px",fontSize:10,fontFamily:"monospace",fontWeight:600,cursor:"default"}}>
+    {s.s}
+  </span>;
+}
+
+function StockInput({label,color,value,onChange,placeholder}){
+  return(
+    <div style={{marginBottom:12}}>
+      <label style={{display:"block",color,fontSize:11,fontFamily:"monospace",fontWeight:600,marginBottom:5,letterSpacing:1}}>{label}</label>
+      <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={3}
+        style={{width:"100%",background:"rgba(0,0,0,0.3)",border:`1px solid ${color}30`,
+          borderRadius:8,padding:"8px 10px",color:"rgba(255,255,255,0.8)",fontSize:12,
+          fontFamily:"monospace",outline:"none",minHeight:60,lineHeight:1.6}}/>
+    </div>
+  );
+}
+
+function HistoryPanel({history,onLoad}){
+  const [open,setOpen]=useState(false);
+  if(!history.length) return null;
+  return(
+    <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",
+      borderRadius:14,marginBottom:16,overflow:"hidden"}}>
+      <button onClick={()=>setOpen(v=>!v)} style={{
+        width:"100%",background:"transparent",border:"none",
+        display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"12px 16px",cursor:"pointer",color:"rgba(255,255,255,0.4)",fontSize:12}}>
+        <span>🕐 ประวัติย้อนหลัง ({history.length} วัน)</span>
+        <span style={{fontFamily:"monospace"}}>{open?"▲":"▼"}</span>
+      </button>
+      {open&&<div style={{padding:"0 16px 14px"}}>
+        {history.map((h,i)=>(
+          <div key={h.ts} style={{
+            background:"rgba(0,0,0,0.25)",borderRadius:10,padding:"10px 14px",marginBottom:8,
+            border:"1px solid rgba(255,255,255,0.06)"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{color:"rgba(255,255,255,0.5)",fontSize:12,fontFamily:"monospace"}}>
+                📅 {h.dateStr}
+              </span>
+              <button onClick={()=>onLoad(h)} style={{
+                background:"rgba(255,77,109,0.1)",border:"1px solid rgba(255,77,109,0.25)",
+                color:"rgba(255,77,109,0.8)",borderRadius:5,padding:"2px 8px",
+                fontSize:10,cursor:"pointer"}}>โหลด</button>
+            </div>
+            <div style={{color:"rgba(255,255,255,0.6)",fontSize:12,lineHeight:1.7,whiteSpace:"pre-wrap",
+              maxHeight:120,overflowY:"auto"}}>{h.boss}</div>
+          </div>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
+function App(){
+  const today = new Date().toLocaleDateString("th-TH",{day:"numeric",month:"long",year:"numeric"});
+
+  const [apiKey,   setApiKey  ] = useState(()=>localStorage.getItem("gemini_key")||"");
+  const [dateStr,  setDateStr ] = useState(today);
+  const [rawG2,    setRawG2   ] = useState("");
+  const [rawG1,    setRawG1   ] = useState("");
+  const [rawG3,    setRawG3   ] = useState("");
+  const [showInput,setShowInput] = useState(true);
+
+  const [status,  setStatus ] = useState({chayakorn:"pending",watsaran:"pending",boss:"pending"});
+  const [output,  setOutput ] = useState({chayakorn:"",watsaran:"",boss:""});
+  const [running, setRunning] = useState(false);
+  const [done,    setDone   ] = useState(false);
+  const [error,   setError  ] = useState("");
+  const [copied,    setCopied   ] = useState(false);
+  const [history,   setHistory  ] = useState(loadHistory);
+  const [tokenSave, setTokenSave] = useState(()=>localStorage.getItem("token_save")==="1");
+
+  const saveKey      = (v)=>{ setApiKey(v);   localStorage.setItem("gemini_key",v); };
+  const toggleTokenSave = ()=>setTokenSave(v=>{ localStorage.setItem("token_save",v?"0":"1"); return !v; });
+
+  const g2s   = parseStocks(rawG2);
+  const g1s   = parseStocks(rawG1);
+  const g3s   = parseStocks(rawG3);
+  const total = g2s.length+g1s.length+g3s.length;
+
+  async function run(){
+    if(running) return;
+    if(!apiKey.trim()){ setError("กรอก API Key ก่อน"); return; }
+    if(total===0){ setError("ยังไม่มีข้อมูลหุ้น — กรอกอย่างน้อย 1 กลุ่ม"); return; }
+    setError(""); setRunning(true); setDone(false); setCopied(false);
+    setOutput({chayakorn:"",watsaran:"",boss:""});
+    setStatus({chayakorn:"pending",watsaran:"pending",boss:"pending"});
+    setShowInput(false);
+
+    const g2sStr=g2s.map(s=>`${s.s} ฿${s.p}`).join(", ")||"-";
+    const g1sStr=g1s.map(s=>`${s.s} ฿${s.p}`).join(", ")||"-";
+    const g3sStr=g3s.map(s=>`${s.s} ฿${s.p}`).join(", ")||"-";
+
+    try{
+      setStatus(p=>({...p,chayakorn:"running"}));
+      const a1 = await streamGemini(apiKey,
+        `คุณคือ "ชยกร" คัดกรองหุ้น SET ตอบภาษาไทย
+แบ่งเป็น 2 กลุ่มตามข้อมูลที่ให้:
+### 🟢🟢 g2s — HA เขียว 2 แท่ง (สัญญาณแรงกว่า) | X ตัว
+- **SYMBOL** ราคา฿ ~MCAPMillion — sector (เหตุผลสั้น)
+### 🟢 g1s/g3s — HA เขียวแท่งแรก (สัญญาณเริ่มต้น) | X ตัว
+- **SYMBOL** ราคา฿ ~MCAPMillion — sector
+คัดเฉพาะ market cap 2,000–50,000M ประเมินจากความรู้ รวมไม่เกิน 12 ตัว`,
+        `ข้อมูล hoonstation.com/top_hagreen วันที่ ${dateStr}\n\ng2s (เขียว 2 แท่ง): ${g2sStr}\ng1s (เขียวแท่งเดียว): ${g1sStr}\ng3s (เขียวแท่งแรก): ${g3sStr}`,
+        (chunk)=>setOutput(p=>({...p,chayakorn:chunk}))
+      );
+      setStatus(p=>({...p,chayakorn:"done",watsaran:"running"}));
+
+      const a1symbols = tokenSave ? extractSymbols(a1).join(", ") : null;
+
+      const a2 = await streamGemini(apiKey,
+        `คุณคือ "วศรัญ" วิเคราะห์ catalyst หุ้นไทย ตอบภาษาไทย
+รูปแบบ:
+1. **SYMBOL** 🔴สูง/🟡กลาง/⚪ต่ำ — [catalyst สั้นๆ 1 บรรทัด]
+เฉพาะตัวที่ชยกรเลือก เรียงจาก impact มากไปน้อย`,
+        tokenSave
+          ? `หุ้นที่ผ่านการคัดกรอง: ${a1symbols}`
+          : `ผล ชยกร:\n${a1}`,
+        (chunk)=>setOutput(p=>({...p,watsaran:chunk}))
+      );
+      setStatus(p=>({...p,watsaran:"done",boss:"running"}));
+
+      const a3 = await streamGemini(apiKey,
+        `คุณคือ "บอส ฒ" ฟันธงหุ้น ตอบภาษาไทย
+รูปแบบ:
+## 🥇 อันดับ N | SYMBOL @ ราคา฿
+**เหตุผล:** [TA + catalyst 1 บรรทัด]
+**เป้าหมาย:** X฿
+**Stop Loss:** X฿
+**ความเชื่อมั่น:** ⭐⭐⭐/⭐⭐/⭐
+---
+TOP 3 เท่านั้น โอกาสวิ่ง 1–2 สัปดาห์`,
+        tokenSave
+          ? `หุ้นที่คัดแล้ว: ${a1symbols}\nวศรัญ:\n${a2}`
+          : `ชยกร:\n${a1}\nวศรัญ:\n${a2}`,
+        (chunk)=>setOutput(p=>({...p,boss:chunk}))
+      );
+      setStatus(p=>({...p,boss:"done"}));
+      setDone(true);
+
+      saveHistory(dateStr, a3);
+      setHistory(loadHistory());
+    }catch(e){
+      setError("⚠️ เกิดข้อผิดพลาด: "+e.message);
+      setStatus(p=>({
+        chayakorn:p.chayakorn==="running"?"done":p.chayakorn,
+        watsaran: p.watsaran ==="running"?"done":p.watsaran,
+        boss:     p.boss     ==="running"?"done":p.boss,
+      }));
+    }finally{
+      setRunning(false);
+    }
+  }
+
+  function copyBoss(){
+    const text = output.boss;
+    if(!text) return;
+    navigator.clipboard.writeText(text).then(()=>{
+      setCopied(true);
+      setTimeout(()=>setCopied(false),2000);
+    });
+  }
+
+  function loadFromHistory(h){
+    setOutput(p=>({...p,boss:h.boss}));
+    setStatus({chayakorn:"done",watsaran:"done",boss:"done"});
+    setDone(true); setShowInput(false);
+    setDateStr(h.dateStr);
+  }
+
+  return(
+    <div className="main-wrap" style={{minHeight:"100vh",
+      backgroundImage:"radial-gradient(ellipse at 20% 20%,#0d1f3c,transparent 60%),radial-gradient(ellipse at 80% 80%,#1a0a1f,transparent 60%)",
+      padding:"24px 18px",maxWidth:680,margin:"0 auto"}}>
+
+      {/* Header */}
+      <div style={{textAlign:"center",marginBottom:20}}>
+        <div style={{display:"inline-block",background:"rgba(255,255,255,0.04)",
+          border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"3px 12px",
+          fontSize:10,color:"rgba(255,255,255,0.35)",fontFamily:"'Share Tech Mono',monospace",
+          marginBottom:8,letterSpacing:2}}>SET · {today}</div>
+        <h1 style={{margin:0,fontSize:24,fontWeight:700,color:"#fff"}}>🤖 3-Agent Stock Hunter</h1>
+        <div style={{color:"rgba(255,255,255,0.3)",fontSize:11,marginTop:4,fontFamily:"monospace"}}>
+          ข้อมูล: hoonstation.com/top_hagreen
+        </div>
+      </div>
+
+      {/* History */}
+      <HistoryPanel history={history} onLoad={loadFromHistory}/>
+
+      {/* Config panel */}
+      <div className="config-panel" style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",
+        borderRadius:14,padding:"14px 16px",marginBottom:16}}>
+
+        <div style={{marginBottom:14}}>
+          <label style={{display:"flex",alignItems:"center",gap:8,
+            color:"rgba(255,255,255,0.5)",fontSize:11,fontFamily:"monospace",marginBottom:5}}>
+            <span>🔑 GEMINI API KEY</span>
+            <span style={{color:"#4ade80",fontSize:10}}>{apiKey?"✓ บันทึกแล้ว":"ยังไม่ได้กรอก"}</span>
+          </label>
+          <input type="password" value={apiKey} onChange={e=>saveKey(e.target.value)}
+            placeholder="AIzaSy..."
+            style={{width:"100%",background:"rgba(0,0,0,0.4)",border:"1px solid rgba(255,255,255,0.12)",
+              borderRadius:8,padding:"8px 12px",color:"rgba(255,255,255,0.8)",fontSize:12,
+              fontFamily:"monospace",outline:"none"}}/>
+        </div>
+
+        {/* Token save toggle */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+          marginBottom:14,padding:"8px 10px",borderRadius:8,
+          background:tokenSave?"rgba(74,222,128,0.05)":"rgba(255,255,255,0.02)",
+          border:tokenSave?"1px solid rgba(74,222,128,0.2)":"1px solid rgba(255,255,255,0.07)"}}>
+          <div>
+            <div style={{color:tokenSave?"#4ade80":"rgba(255,255,255,0.4)",fontSize:12,fontWeight:600}}>
+              ⚡ ประหยัด Token
+            </div>
+            <div style={{color:"rgba(255,255,255,0.25)",fontSize:10,marginTop:2}}>
+              {tokenSave?"ส่งเฉพาะ symbol list ให้ agent 2-3 (~70% ลด token)":"ส่ง output เต็มให้ทุก agent (แม่นยำกว่า)"}
+            </div>
+          </div>
+          <button onClick={toggleTokenSave} style={{
+            background:tokenSave?"rgba(74,222,128,0.15)":"rgba(255,255,255,0.06)",
+            border:tokenSave?"1px solid rgba(74,222,128,0.35)":"1px solid rgba(255,255,255,0.12)",
+            color:tokenSave?"#4ade80":"rgba(255,255,255,0.4)",
+            borderRadius:20,padding:"4px 14px",fontSize:12,cursor:"pointer",
+            fontWeight:600,minWidth:52,transition:"all 0.2s"}}>
+            {tokenSave?"ON":"OFF"}
+          </button>
+        </div>
+
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:showInput?12:0}}>
+          <span style={{color:"rgba(255,255,255,0.4)",fontSize:12}}>
+            📋 ข้อมูลหุ้นวันนี้
+            {total>0&&<span style={{color:"#4ade80",marginLeft:6}}>{total} ตัว</span>}
+          </span>
+          <button onClick={()=>setShowInput(v=>!v)} style={{
+            background:"transparent",border:"1px solid rgba(255,255,255,0.15)",
+            color:"rgba(255,255,255,0.5)",borderRadius:6,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>
+            {showInput?"ซ่อน":"แก้ไข"}
+          </button>
+        </div>
+
+        {showInput&&<>
+          <div style={{marginBottom:12}}>
+            <label style={{display:"block",color:"rgba(255,255,255,0.4)",fontSize:11,
+              fontFamily:"monospace",marginBottom:4}}>📅 วันที่</label>
+            <input value={dateStr} onChange={e=>setDateStr(e.target.value)}
+              style={{background:"rgba(0,0,0,0.3)",border:"1px solid rgba(255,255,255,0.12)",
+                borderRadius:8,padding:"6px 10px",color:"rgba(255,255,255,0.8)",fontSize:12,
+                fontFamily:"monospace",outline:"none",width:"100%"}}/>
+          </div>
+          <StockInput label="🟢🟢 G2S — HA เขียว 2 แท่ง" color="#00d4ff" value={rawG2} onChange={setRawG2}
+            placeholder={"SYNTEC 1.68\nAEONTS 95.25\nFSMART 7.70"}/>
+          <StockInput label="🟢 G1S — HA เขียวแท่งแรก" color="#a78bfa" value={rawG1} onChange={setRawG1}
+            placeholder={"TKN 4.22"}/>
+          <StockInput label="🟢 G3S — กลุ่มอื่นๆ" color="#4ade80" value={rawG3} onChange={setRawG3}
+            placeholder={"PPP 0.97\nBM 1.05\nCGH 0.55"}/>
+
+          {(g2s.length>0||g1s.length>0||g3s.length>0)&&<div style={{
+            background:"rgba(0,0,0,0.2)",borderRadius:8,padding:"8px 10px",marginTop:2}}>
+            {g2s.length>0&&<div style={{marginBottom:4,display:"flex",flexWrap:"wrap",gap:3,alignItems:"center"}}>
+              <span style={{fontSize:10,color:"rgba(0,212,255,0.5)",fontFamily:"monospace",marginRight:2}}>g2s ({g2s.length}):</span>
+              {g2s.map((s,i)=><Pill key={s.s+i} s={s} color="#00d4ff"/>)}
+            </div>}
+            {g1s.length>0&&<div style={{marginBottom:4,display:"flex",flexWrap:"wrap",gap:3,alignItems:"center"}}>
+              <span style={{fontSize:10,color:"rgba(167,139,250,0.5)",fontFamily:"monospace",marginRight:2}}>g1s ({g1s.length}):</span>
+              {g1s.map((s,i)=><Pill key={s.s+i} s={s} color="#a78bfa"/>)}
+            </div>}
+            {g3s.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:3,alignItems:"center"}}>
+              <span style={{fontSize:10,color:"rgba(74,222,128,0.5)",fontFamily:"monospace",marginRight:2}}>g3s ({g3s.length}):</span>
+              {g3s.map((s,i)=><Pill key={s.s+i} s={s} color="#4ade80"/>)}
+            </div>}
+          </div>}
+        </>}
+      </div>
+
+      {error&&<div style={{background:"rgba(255,77,77,0.1)",border:"1px solid rgba(255,77,77,0.3)",
+        borderRadius:8,padding:"8px 14px",marginBottom:12,color:"#ff7777",fontSize:12,
+        fontFamily:"monospace"}}>⚠️ {error}</div>}
+
+      <div style={{textAlign:"center",marginBottom:20}}>
+        <button className="run-btn" onClick={run} disabled={running} style={{
+          background:running?"rgba(255,255,255,0.06)"
+            :"linear-gradient(135deg,rgba(0,212,255,0.12),rgba(255,77,109,0.12))",
+          border:running?"1px solid rgba(255,255,255,0.1)":"1px solid rgba(255,100,130,0.45)",
+          borderRadius:12,color:running?"rgba(255,255,255,0.4)":"#fff",
+          padding:"12px 32px",fontSize:15,fontWeight:600,
+          cursor:running?"not-allowed":"pointer",transition:"all 0.3s"}}>
+          {running?"🔄 กำลังวิเคราะห์...":done?"🔁 วิเคราะห์ใหม่":"🚀 วิเคราะห์ 3 Agent"}
+        </button>
+      </div>
+
+      <AgentCard ag={AGENTS.chayakorn} status={status.chayakorn} output={output.chayakorn} step={1}/>
+      <AgentCard ag={AGENTS.watsaran}  status={status.watsaran}  output={output.watsaran}  step={2}/>
+      <AgentCard ag={AGENTS.boss} status={status.boss} output={output.boss} step={3}
+        onCopy={copyBoss} copied={copied}/>
+
+      {done&&<div style={{textAlign:"center",marginTop:6,padding:"8px 14px",
+        background:"rgba(255,77,109,0.05)",border:"1px solid rgba(255,77,109,0.12)",
+        borderRadius:10,color:"rgba(255,255,255,0.25)",fontSize:11,animation:"fadeIn 0.5s ease"}}>
+        ⚠️ วิเคราะห์เบื้องต้นเท่านั้น ไม่ใช่คำแนะนำการลงทุน
+      </div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
