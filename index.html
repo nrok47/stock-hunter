@@ -267,13 +267,35 @@ function parseStocks(raw) {
   return stocks;
 }
 
-// Scrape Hoonstation via CORS proxy
+// Scrape Hoonstation via local proxy or fallback CORS proxy
 async function scrapeHoonstation() {
-  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://www.hoonstation.com/top_hagreen')}`;
-  const r = await fetch(proxyUrl);
-  if (!r.ok) throw new Error("CORS Proxy error");
-  const data = await r.json();
-  const html = data.contents;
+  let html = "";
+  try {
+    if (window.location.protocol !== "file:") {
+      const localResponse = await fetch("./proxy.php");
+      if (localResponse.ok) {
+        const localData = await localResponse.json();
+        if (localData.contents) {
+          html = localData.contents;
+        }
+      }
+    }
+  } catch (localErr) {
+    console.warn("Local PHP proxy failed, trying public CORS proxy...", localErr);
+  }
+
+  // Fallback to allorigins public proxy if local proxy was unavailable or failed
+  if (!html) {
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://www.hoonstation.com/top_hagreen')}`;
+    const r = await fetch(proxyUrl);
+    if (!r.ok) throw new Error("CORS Proxy error");
+    const data = await r.json();
+    html = data.contents;
+  }
+
+  if (!html) {
+    throw new Error("ดึงข้อมูลจากเว็บล้มเหลว");
+  }
   
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
