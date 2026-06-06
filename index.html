@@ -35,9 +35,33 @@
 <script type="text/babel">
 const {useState, useRef} = React;
 
-const MODEL        = "gemini-1.5-flash";
-const GEMINI_STREAM = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse`;
-const HISTORY_KEY  = "stock_history_v2";
+const GIST_ID  = "82fd61b97064c5df31452ab4ba448bdd";
+const GIST_API = `https://api.github.com/gists/${GIST_ID}`;
+
+async function saveToGist(ghToken, data){
+  const r = await fetch(GIST_API,{
+    method:"PATCH",
+    headers:{"Authorization":`Bearer ${ghToken}`,"Content-Type":"application/json","X-GitHub-Api-Version":"2022-11-28"},
+    body: JSON.stringify({files:{"analysis.json":{content:JSON.stringify(data)}}}),
+  });
+  if(!r.ok){ const d=await r.json(); throw new Error(d.message||"Gist save failed"); }
+}
+
+const PROVIDERS = {
+  gemini: {
+    label:"Gemini 2.0 Flash", tag:"ฟรี", tagColor:"#4ade80",
+    placeholder:"AIzaSy...", storageKey:"gemini_key",
+  },
+  claude: {
+    label:"Claude Sonnet 4.5", tag:"เสียเงิน", tagColor:"#f59e0b",
+    placeholder:"sk-ant-api03-...", storageKey:"claude_key",
+  },
+};
+
+const GEMINI_STREAM  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse";
+const CLAUDE_API     = "https://api.anthropic.com/v1/messages";
+const CLAUDE_MODEL   = "claude-sonnet-4-5";
+const HISTORY_KEY    = "stock_history_v2";
 
 const AGENTS = {
   chayakorn: {name:"ชยกร",  role:"นักคัดกรองหุ้น",   emoji:"🔍", color:"#00d4ff", bg:"rgba(0,212,255,0.08)",  border:"rgba(0,212,255,0.3)"},
@@ -87,6 +111,50 @@ async function streamGemini(apiKey, system, user, onChunk, maxTok=900){
         const txt   = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
         full += txt;
         onChunk(full);
+      }catch{}
+    }
+  }
+  return full.trim() || "⚠️ ไม่มีผลลัพธ์";
+}
+
+async function streamClaude(apiKey, system, user, onChunk, maxTok=900){
+  const r = await fetch(CLAUDE_API, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "x-api-key": apiKey,
+      "anthropic-version":"2023-06-01",
+      "anthropic-dangerous-direct-browser-access":"true",
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL, max_tokens: maxTok, stream: true,
+      system, messages:[{role:"user",content:user}],
+    }),
+  });
+  if(!r.ok){
+    let msg = "HTTP "+r.status;
+    try{ const d=await r.json(); msg=d.error?.message||msg; }catch{}
+    throw new Error(msg);
+  }
+  const reader  = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf="", full="";
+  while(true){
+    const {done,value} = await reader.read();
+    if(done) break;
+    buf += decoder.decode(value,{stream:true});
+    const lines = buf.split("\n");
+    buf = lines.pop();
+    for(const line of lines){
+      if(!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if(raw==="[DONE]") continue;
+      try{
+        const ev = JSON.parse(raw);
+        if(ev.type==="content_block_delta" && ev.delta?.type==="text_delta"){
+          full += ev.delta.text;
+          onChunk(full);
+        }
       }catch{}
     }
   }
@@ -205,7 +273,9 @@ function HistoryPanel({history,onLoad}){
 function App(){
   const today = new Date().toLocaleDateString("th-TH",{day:"numeric",month:"long",year:"numeric"});
 
-  const [apiKey,   setApiKey  ] = useState(()=>localStorage.getItem("gemini_key")||"");
+  const [provider, setProvider] = useState(()=>localStorage.getItem("provider")||"gemini");
+  const prov = PROVIDERS[provider];
+  const [apiKey,   setApiKey  ] = useState(()=>localStorage.getItem(prov.storageKey)||"");
   const [dateStr,  setDateStr ] = useState(today);
   const [rawG2,    setRawG2   ] = useState("");
   const [rawG1,    setRawG1   ] = useState("");
@@ -220,8 +290,18 @@ function App(){
   const [copied,    setCopied   ] = useState(false);
   const [history,   setHistory  ] = useState(loadHistory);
   const [tokenSave, setTokenSave] = useState(()=>localStorage.getItem("token_save")==="1");
+  const [ghToken,   setGhToken  ] = useState(()=>localStorage.getItem("gh_token")||"");
+  const [gistStatus,setGistStatus] = useState("");
 
-  const saveKey      = (v)=>{ setApiKey(v);   localStorage.setItem("gemini_key",v); };
+  const saveKey    = (v)=>{ setApiKey(v); localStorage.setItem(prov.storageKey,v); };
+  const saveGhToken= (v)=>{ setGhToken(v); localStorage.setItem("gh_token",v); };
+  const switchProvider = (p)=>{
+    setProvider(p); localStorage.setItem("provider",p);
+    setApiKey(localStorage.getItem(PROVIDERS[p].storageKey)||"");
+    setError("");
+  };
+  const callAI = (sys,usr,onChunk,tok)=>
+    provider==="claude" ? streamClaude(apiKey,sys,usr,onChunk,tok) : streamGemini(apiKey,sys,usr,onChunk,tok);
   const toggleTokenSave = ()=>setTokenSave(v=>{ localStorage.setItem("token_save",v?"0":"1"); return !v; });
 
   const g2s   = parseStocks(rawG2);
@@ -244,7 +324,7 @@ function App(){
 
     try{
       setStatus(p=>({...p,chayakorn:"running"}));
-      const a1 = await streamGemini(apiKey,
+      const a1 = await callAI(
         `คุณคือ "ชยกร" คัดกรองหุ้น SET ตอบภาษาไทย
 แบ่งเป็น 2 กลุ่มตามข้อมูลที่ให้:
 ### 🟢🟢 g2s — HA เขียว 2 แท่ง (สัญญาณแรงกว่า) | X ตัว
@@ -259,7 +339,7 @@ function App(){
 
       const a1symbols = tokenSave ? extractSymbols(a1).join(", ") : null;
 
-      const a2 = await streamGemini(apiKey,
+      const a2 = await callAI(
         `คุณคือ "วศรัญ" วิเคราะห์ catalyst หุ้นไทย ตอบภาษาไทย
 รูปแบบ:
 1. **SYMBOL** 🔴สูง/🟡กลาง/⚪ต่ำ — [catalyst สั้นๆ 1 บรรทัด]
@@ -271,7 +351,7 @@ function App(){
       );
       setStatus(p=>({...p,watsaran:"done",boss:"running"}));
 
-      const a3 = await streamGemini(apiKey,
+      const a3 = await callAI(
         `คุณคือ "บอส ฒ" ฟันธงหุ้น ตอบภาษาไทย
 รูปแบบ:
 ## 🥇 อันดับ N | SYMBOL @ ราคา฿
@@ -291,6 +371,21 @@ TOP 3 เท่านั้น โอกาสวิ่ง 1–2 สัปดา
 
       saveHistory(dateStr, a3);
       setHistory(loadHistory());
+
+      if(ghToken.trim()){
+        setGistStatus("saving");
+        try{
+          await saveToGist(ghToken,{
+            updated: new Date().toISOString(),
+            date: dateStr,
+            provider,
+            chayakorn: a1,
+            watsaran:  a2,
+            boss:      a3,
+          });
+          setGistStatus("saved");
+        }catch(e){ setGistStatus("error: "+e.message); }
+      }
     }catch(e){
       setError("⚠️ เกิดข้อผิดพลาด: "+e.message);
       setStatus(p=>({
@@ -343,14 +438,53 @@ TOP 3 เท่านั้น โอกาสวิ่ง 1–2 สัปดา
       <div className="config-panel" style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",
         borderRadius:14,padding:"14px 16px",marginBottom:16}}>
 
+        {/* Provider selector */}
+        <div style={{display:"flex",gap:6,marginBottom:12}}>
+          {Object.entries(PROVIDERS).map(([key,p])=>(
+            <button key={key} onClick={()=>switchProvider(key)} style={{
+              flex:1,padding:"8px 6px",borderRadius:8,cursor:"pointer",
+              transition:"all 0.2s",fontSize:12,fontWeight:600,
+              background: provider===key?"rgba(255,255,255,0.08)":"transparent",
+              border: provider===key?"1px solid rgba(255,255,255,0.2)":"1px solid rgba(255,255,255,0.07)",
+              color: provider===key?"#fff":"rgba(255,255,255,0.35)"}}>
+              <div>{p.label}</div>
+              <div style={{fontSize:10,color:provider===key?p.tagColor:"rgba(255,255,255,0.2)",marginTop:2}}>{p.tag}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* API Key */}
         <div style={{marginBottom:14}}>
           <label style={{display:"flex",alignItems:"center",gap:8,
             color:"rgba(255,255,255,0.5)",fontSize:11,fontFamily:"monospace",marginBottom:5}}>
-            <span>🔑 GEMINI API KEY</span>
+            <span>🔑 {prov.label.toUpperCase()} API KEY</span>
             <span style={{color:"#4ade80",fontSize:10}}>{apiKey?"✓ บันทึกแล้ว":"ยังไม่ได้กรอก"}</span>
           </label>
           <input type="password" value={apiKey} onChange={e=>saveKey(e.target.value)}
-            placeholder="AIzaSy..."
+            placeholder={prov.placeholder}
+            style={{width:"100%",background:"rgba(0,0,0,0.4)",border:"1px solid rgba(255,255,255,0.12)",
+              borderRadius:8,padding:"8px 12px",color:"rgba(255,255,255,0.8)",fontSize:12,
+              fontFamily:"monospace",outline:"none"}}/>
+        </div>
+
+        {/* GitHub Token for Gist */}
+        <div style={{marginBottom:14}}>
+          <label style={{display:"flex",alignItems:"center",gap:8,
+            color:"rgba(255,255,255,0.5)",fontSize:11,fontFamily:"monospace",marginBottom:5}}>
+            <span>🐙 GITHUB TOKEN (สำหรับ publish ผล)</span>
+            <span style={{fontSize:10,color:
+              gistStatus==="saved"?"#4ade80":
+              gistStatus==="saving"?"#f59e0b":
+              gistStatus.startsWith("error")?"#ff7777":
+              ghToken?"#4ade80":"rgba(255,255,255,0.25)"}}>
+              {gistStatus==="saved"?"✓ publish แล้ว":
+               gistStatus==="saving"?"⏳ กำลัง publish...":
+               gistStatus.startsWith("error")?"⚠️ "+gistStatus.slice(7):
+               ghToken?"✓ พร้อม":"ไม่ publish (optional)"}
+            </span>
+          </label>
+          <input type="password" value={ghToken} onChange={e=>saveGhToken(e.target.value)}
+            placeholder="ghp_..."
             style={{width:"100%",background:"rgba(0,0,0,0.4)",border:"1px solid rgba(255,255,255,0.12)",
               borderRadius:8,padding:"8px 12px",color:"rgba(255,255,255,0.8)",fontSize:12,
               fontFamily:"monospace",outline:"none"}}/>
