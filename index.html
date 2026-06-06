@@ -3,10 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>3-Agent Stock Hunter - Admin Panel</title>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<title>Stock Hunter — ผลวิเคราะห์ล่าสุด</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+Thai:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -14,11 +11,8 @@
     --card-bg: rgba(17, 24, 39, 0.6);
     --card-border: rgba(255, 255, 255, 0.05);
     --primary: #00d4ff;
-    --primary-glow: rgba(0, 212, 255, 0.15);
     --secondary: #f59e0b;
-    --secondary-glow: rgba(245, 158, 11, 0.15);
     --accent: #ff4d6d;
-    --accent-glow: rgba(255, 77, 109, 0.15);
     --purple: #a78bfa;
     --green: #4ade80;
     --text: #f3f4f6;
@@ -33,1378 +27,207 @@
     font-family: 'Outfit', 'Noto Sans Thai', sans-serif;
     color: var(--text);
     background-image: 
-      radial-gradient(ellipse at 10% 10%, rgba(29, 78, 216, 0.15), transparent 50%),
-      radial-gradient(ellipse at 90% 90%, rgba(112, 26, 117, 0.15), transparent 50%);
+      radial-gradient(ellipse at 20% 20%, rgba(13, 31, 60, 0.5), transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(26, 10, 31, 0.5), transparent 60%);
     background-attachment: fixed;
   }
-  @keyframes scanline{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
   
-  ::-webkit-scrollbar{width:6px;height:6px;}
-  ::-webkit-scrollbar-track{background: rgba(0, 0, 0, 0.2);}
+  ::-webkit-scrollbar{width:6px}
   ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:4px}
   ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.25)}
-
-  textarea, input, select{
-    font-family: inherit;
-  }
-  button:hover{filter:brightness(1.15); transform: translateY(-1px);}
-  button:active{transform: translateY(0);}
   
-  .glass-card {
+  .card{
     background: var(--card-bg);
-    backdrop-filter: blur(16px);
+    backdrop-filter: blur(12px);
     border: 1px solid var(--card-border);
     border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    margin-bottom: 20px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
     animation: fadeIn 0.4s ease;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   }
-
-  .tabs-nav {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    padding-bottom: 10px;
-    overflow-x: auto;
+  
+  .card-boss{
+    background: rgba(255, 77, 109, 0.04);
+    border-color: rgba(255, 77, 109, 0.2);
+    box-shadow: 0 10px 30px rgba(255, 77, 109, 0.05);
   }
-
-  .tab-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 13px;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
+  .card-ck{
+    background: rgba(0, 212, 255, 0.03);
+    border-color: rgba(0, 212, 255, 0.15);
   }
-
-  .tab-btn.active {
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff;
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 0 15px rgba(255,255,255,0.02);
+  .card-ws{
+    background: rgba(245, 158, 11, 0.03);
+    border-color: rgba(245, 158, 11, 0.15);
   }
-
-  .tab-btn:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  .input-label {
-    display: block;
-    color: var(--text-secondary);
+  .label{
     font-size: 11px;
     font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
     font-weight: 600;
-    margin-bottom: 6px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
   }
-
-  .text-field {
-    width: 100%;
-    background: rgba(0,0,0,0.4);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    padding: 10px 12px;
-    color: var(--text);
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.3s;
-  }
-  .text-field:focus {
-    border-color: var(--primary);
-  }
-
-  .btn {
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid transparent;
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, #00b4ff, #0077ff);
-    color: #fff;
-    box-shadow: 0 4px 14px rgba(0, 180, 255, 0.3);
+  .content{
+    font-size: 14px;
+    line-height: 1.85;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 8px;
   }
   
-  .btn-secondary {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255,255,255,0.12);
-    color: var(--text);
-  }
-
-  .badge-cat {
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-family: 'Share Tech Mono', monospace;
-    font-weight: 700;
+  .spinner{
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(255,255,255,0.1);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
   }
   
-  .badge-g2s { background: rgba(0, 212, 255, 0.12); border: 1px solid rgba(0, 212, 255, 0.3); color: #00d4ff; }
-  .badge-g1s { background: rgba(167, 139, 250, 0.12); border: 1px solid rgba(167, 139, 250, 0.3); color: #a78bfa; }
-  .badge-g3s { background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.3); color: #4ade80; }
-
   @media(max-width:480px){
-    body { padding: 10px !important; }
-    .glass-card { padding: 14px !important; }
-    h1 { font-size: 18px !important; }
-    .tab-btn { padding: 6px 12px; font-size: 12px; }
+    .wrap{padding:14px 12px!important}
+    .content{font-size:13px}
+    .card{padding:16px 16px!important}
   }
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div class="wrap" style="max-width:760px;margin:0 auto;padding:24px 16px">
 
-<script type="text/babel">
-const { useState, useEffect, useRef } = React;
-
-const DEFAULT_GIST_ID = "82fd61b97064c5df31452ab4ba448bdd";
-const GIST_API = (id) => `https://api.github.com/gists/${id}`;
-
-// Fetch previous run output from Github Gist (for Memory Layer)
-async function getPreviousAnalysis(gistId, ghToken) {
-  try {
-    const url = GIST_API(gistId);
-    const headers = {};
-    if (ghToken) {
-      headers["Authorization"] = `Bearer ${ghToken}`;
-    }
-    const r = await fetch(url, { headers });
-    if (!r.ok) return null;
-    const d = await r.json();
-    const file = d.files?.["analysis.json"];
-    if (file && file.content) {
-      return JSON.parse(file.content);
-    }
-  } catch (e) {
-    console.error("Failed to load previous analysis for memory layer", e);
-  }
-  return null;
-}
-
-// Upload analysis outputs to Github Gist
-async function saveToGist(gistId, ghToken, data){
-  const r = await fetch(GIST_API(gistId),{
-    method:"PATCH",
-    headers:{
-      "Authorization": `Bearer ${ghToken}`,
-      "Content-Type": "application/json",
-      "X-GitHub-Api-Version": "2022-11-28"
-    },
-    body: JSON.stringify({
-      files: {
-        "analysis.json": { content: JSON.stringify(data) }
-      }
-    }),
-  });
-  if(!r.ok){ 
-    const d = await r.json(); 
-    throw new Error(d.message || "Gist save failed"); 
-  }
-}
-
-const PROVIDERS = {
-  gemini: {
-    label:"Gemini 2.0 Flash", tag:"ฟรี 100% (แนะนำ)", tagColor:"#4ade80",
-    placeholder:"AIzaSy...", storageKey:"gemini_key",
-  },
-  claude: {
-    label:"Claude Sonnet 4.5", tag:"มีค่าบริการ (ไม่แนะนำ)", tagColor:"#f59e0b",
-    placeholder:"sk-ant-api03-...", storageKey:"claude_key",
-  },
-};
-
-const GEMINI_MODELS = ["gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash"];
-const GEMINI_STREAM  = (m)=>`https://generativelanguage.googleapis.com/v1beta/models/${m}:streamGenerateContent?alt=sse`;
-const CLAUDE_API     = "https://api.anthropic.com/v1/messages";
-const CLAUDE_MODEL   = "claude-sonnet-4-5";
-const HISTORY_KEY    = "stock_history_v2";
-
-const AGENTS = {
-  chayakorn: {name:"ชยกร",  role:"นักคัดกรองหุ้น (TA + Watchlist)", emoji:"🔍", color:"#00d4ff", bg:"rgba(0,212,255,0.05)",  border:"rgba(0,212,255,0.2)"},
-  watsaran:  {name:"วศรัญ", role:"นักวิเคราะห์ข่าว (Catalyst & News)", emoji:"📰", color:"#f59e0b", bg:"rgba(245,158,11,0.05)", border:"rgba(245,158,11,0.2)"},
-  boss:      {name:"บอส ฒ", role:"ผู้ฟันธง & จัดการความเสี่ยง (Decision)", emoji:"⚡", color:"#ff4d6d", bg:"rgba(255,77,109,0.05)", border:"rgba(255,77,109,0.2)"},
-};
-
-function extractSymbols(text){
-  const found = [...text.matchAll(/\*\*([A-Z0-9\-\.]{2,10})\*\*/g)].map(m=>m[1]);
-  return [...new Set(found)];
-}
-
-// Token-based robust parser for copy-pasting or scraped HTML text
-function parseStocks(raw) {
-  const tokens = raw.split(/[\s,]+/);
-  const stocks = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i].toUpperCase().replace(/[^A-Z0-9\-\.]/g, "");
-    if (/^[A-Z0-9\-\.]{2,10}$/.test(token) && !/^[0-9.]+$/.test(token)) {
-      if (i + 1 < tokens.length) {
-        const nextVal = tokens[i+1].replace(/[^\d.]/g, "");
-        if (/^[0-9.]+$/.test(nextVal)) {
-          stocks.push({ s: token, p: parseFloat(nextVal) });
-          i++; 
-        }
-      }
-    }
-  }
-  return stocks;
-}
-
-// Scrape Hoonstation via local proxy or fallback CORS proxy
-async function scrapeHoonstation() {
-  let html = "";
-  try {
-    if (window.location.protocol !== "file:") {
-      const localResponse = await fetch("./proxy.php");
-      if (localResponse.ok) {
-        const localData = await localResponse.json();
-        if (localData.contents) {
-          html = localData.contents;
-        }
-      }
-    }
-  } catch (localErr) {
-    console.warn("Local PHP proxy failed, trying public CORS proxy...", localErr);
-  }
-
-  // Fallback to allorigins public proxy if local proxy was unavailable or failed
-  if (!html) {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://www.hoonstation.com/top_hagreen')}`;
-    const r = await fetch(proxyUrl);
-    if (!r.ok) throw new Error("CORS Proxy error");
-    const data = await r.json();
-    html = data.contents;
-  }
-
-  if (!html) {
-    throw new Error("ดึงข้อมูลจากเว็บล้มเหลว");
-  }
-  
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-  
-  const scripts = doc.querySelectorAll("script, style");
-  scripts.forEach(s => s.remove());
-  
-  const bodyText = doc.body ? doc.body.innerText : "";
-  const parsed = parseStocks(bodyText);
-  
-  const unique = [];
-  const seen = new Set();
-  const exclude = new Set(["HA", "SET", "SET50", "SET100", "MAI", "PE", "PBV", "DE", "EPS", "ROA", "ROE", "MCAP", "G1S", "G2S", "G3S", "HOON", "STATION"]);
-  
-  for (const item of parsed) {
-    if (!seen.has(item.s) && !exclude.has(item.s) && isNaN(item.s)) {
-      seen.add(item.s);
-      unique.push(item);
-    }
-  }
-  return unique;
-}
-
-function loadHistory(){ 
-  try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]"); }catch{ return []; } 
-}
-
-function saveHistory(dateStr, boss){
-  const h = loadHistory();
-  h.unshift({dateStr, boss, ts:Date.now()});
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0,10)));
-}
-
-async function streamGemini(apiKey, system, user, onChunk, maxTok=1200, model="gemini-2.0-flash"){
-  const r = await fetch(GEMINI_STREAM(model), {
-    method:"POST",
-    headers:{"Content-Type":"application/json","x-goog-api-key":apiKey},
-    body: JSON.stringify({
-      systemInstruction:{parts:[{text:system}]},
-      contents:[{role:"user",parts:[{text:user}]}],
-      generationConfig:{maxOutputTokens:maxTok},
-    }),
-  });
-  if(!r.ok){
-    let msg = "HTTP "+r.status;
-    try{ const d=await r.json(); msg=d.error?.message||msg; }catch{}
-    throw new Error(msg);
-  }
-  const reader  = r.body.getReader();
-  const decoder = new TextDecoder();
-  let buf="", full="";
-  while(true){
-    const {done,value} = await reader.read();
-    if(done) break;
-    buf += decoder.decode(value,{stream:true});
-    const lines = buf.split("\n");
-    buf = lines.pop();
-    for(const line of lines){
-      if(!line.startsWith("data: ")) continue;
-      try{
-        const chunk = JSON.parse(line.slice(6));
-        const txt   = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        full += txt;
-        onChunk(full);
-      }catch{}
-    }
-  }
-  return full.trim() || "⚠️ ไม่มีผลลัพธ์";
-}
-
-async function streamClaude(apiKey, system, user, onChunk, maxTok=1200){
-  const r = await fetch(CLAUDE_API, {
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "x-api-key": apiKey,
-      "anthropic-version":"2023-06-01",
-      "anthropic-dangerous-direct-browser-access":"true",
-    },
-    body: JSON.stringify({
-      model: CLAUDE_MODEL, max_tokens: maxTok, stream: true,
-      system, messages:[{role:"user",content:user}],
-    }),
-  });
-  if(!r.ok){
-    let msg = "HTTP "+r.status;
-    try{ const d=await r.json(); msg=d.error?.message||msg; }catch{}
-    throw new Error(msg);
-  }
-  const reader  = r.body.getReader();
-  const decoder = new TextDecoder();
-  let buf="", full="";
-  while(true){
-    const {done,value} = await reader.read();
-    if(done) break;
-    buf += decoder.decode(value,{stream:true});
-    const lines = buf.split("\n");
-    buf = lines.pop();
-    for(const line of lines){
-      if(!line.startsWith("data: ")) continue;
-      const raw = line.slice(6).trim();
-      if(raw==="[DONE]") continue;
-      try{
-        const ev = JSON.parse(raw);
-        if(ev.type==="content_block_delta" && ev.delta?.type==="text_delta"){
-          full += ev.delta.text;
-          onChunk(full);
-        }
-      }catch{}
-    }
-  }
-  return full.trim() || "⚠️ ไม่มีผลลัพธ์";
-}
-
-function Cursor(){ return <span style={{display:"inline-block",width:7,height:13,background:"rgba(255,255,255,0.6)",marginLeft:1,verticalAlign:"middle",animation:"blink 0.8s step-end infinite"}}/>; }
-
-function Dots({color}){
-  return <div style={{display:"flex",gap:4}}>
-    {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:color,animation:`bounce 0.8s ease-in-out ${i*0.15}s infinite`}}/>)}
-  </div>;
-}
-
-// Components
-function AgentCard({ag,status,output,step,onCopy,copied}){
-  const isRun=status==="running", isDone=status==="done", isPend=status==="pending";
-  return(
-    <div style={{
-      background:ag.bg, borderRadius:16, padding:"18px 22px", marginBottom:14,
-      border:`1px solid ${isDone||isRun?ag.border:"rgba(255,255,255,0.05)"}`,
-      opacity:isPend?0.4:1, transition:"all 0.4s", position:"relative", overflow:"hidden"
-    }}>
-      {isRun&&<div style={{position:"absolute",top:0,left:0,right:0,height:2,
-        background:`linear-gradient(90deg,transparent,${ag.color},transparent)`,
-        animation:"scanline 1.5s linear infinite"}}/>}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:output?12:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <div style={{
-            width:36,height:36,borderRadius:"50%",background:`${ag.color}15`,
-            border:`1.5px solid ${ag.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,
-            boxShadow:isDone||isRun?`0 0 10px ${ag.color}33`:"none"
-          }}>{ag.emoji}</div>
-          <div>
-            <div style={{color:ag.color,fontWeight:700,fontSize:14}}>Agent {step}: {ag.name}</div>
-            <div style={{color:"rgba(255,255,255,0.35)",fontSize:11,fontFamily:"monospace"}}>{ag.role}</div>
-          </div>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {isDone&&onCopy&&<button onClick={onCopy} style={{
-            background:copied?"rgba(74,222,128,0.1)":"rgba(255,255,255,0.04)",
-            border:copied?"1px solid rgba(74,222,128,0.3)":"1px solid rgba(255,255,255,0.1)",
-            color:copied?"#4ade80":"rgba(255,255,255,0.5)",borderRadius:6,
-            padding:"4px 10px",fontSize:11,cursor:"pointer",transition:"all 0.2s"}}>
-            {copied?"✓ copied":"copy"}
-          </button>}
-          {isRun&&<Dots color={ag.color}/>}
-          {isDone&&<span style={{color:"#4ade80",fontSize:16,fontWeight:"bold"}}>✓</span>}
-          {isPend&&<span style={{color:"rgba(255,255,255,0.15)",fontSize:14}}>○</span>}
-        </div>
-      </div>
-      {output&&<div style={{
-        background:"rgba(0,0,0,0.3)",borderRadius:10,padding:"14px",
-        fontSize:13.5,lineHeight:1.8,color:"rgba(255,255,255,0.9)",whiteSpace:"pre-wrap",
-        maxHeight:280,overflowY:"auto",border:"1px solid rgba(255,255,255,0.03)"
-      }}>
-        {output}{isRun&&<Cursor/>}
-      </div>}
+  <!-- Header -->
+  <div style="text-align:center;margin-bottom:28px">
+    <div style="display:inline-block;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px;padding:3px 12px;font-size:10px;color:rgba(255,255,255,0.4);
+      font-family:'Share Tech Mono',monospace;margin-bottom:8px;letter-spacing:2px">
+      SET · STOCK HUNTER
     </div>
-  );
-}
+    <h1 style="font-size:24px;font-weight:700;color:#fff;margin-bottom:6px">🤖 ผลวิเคราะห์ล่าสุด</h1>
+    <div id="meta" style="font-size:11.5px;color:rgba(255,255,255,0.35);font-family:'Share Tech Mono',monospace;letter-spacing:0.5px"></div>
+  </div>
 
-function App(){
-  const today = new Date().toLocaleDateString("th-TH",{day:"numeric",month:"long",year:"numeric"});
-  
-  // Navigation
-  const [tab, setTab] = useState("dashboard"); // dashboard, watchlist, inputs, settings, history
+  <!-- Loading -->
+  <div id="loading" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:50px 0">
+    <div class="spinner"></div>
+    <div style="color:var(--text-muted);font-size:13px">กำลังโหลดข้อมูลและถอดรหัสผลวิเคราะห์...</div>
+  </div>
 
-  // Configuration
-  const [provider, setProvider] = useState(()=>localStorage.getItem("provider")||"gemini");
-  const prov = PROVIDERS[provider];
-  const [apiKey, setApiKey] = useState(()=>localStorage.getItem(prov.storageKey)||"");
-  const [dateStr, setDateStr] = useState(today);
-  const [gistId, setGistId] = useState(()=>localStorage.getItem("gist_id")||DEFAULT_GIST_ID);
-  const [ghToken, setGhToken] = useState(()=>localStorage.getItem("gh_token")||"");
-  const [tokenSave, setTokenSave] = useState(()=>localStorage.getItem("token_save")!=="0");
-  const [geminiModel, setGeminiModel] = useState(()=>localStorage.getItem("gemini_model")||"gemini-2.0-flash");
-  
-  // Diverse Inputs
-  const [volumeSpikes, setVolumeSpikes] = useState(()=>localStorage.getItem("volume_spikes")||"");
-  const [marketNews, setMarketNews] = useState(()=>localStorage.getItem("market_news")||"");
+  <!-- Error -->
+  <div id="error" style="display:none;background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.3);
+    border-radius:12px;padding:18px;text-align:center;color:#ff7777;font-size:13.5px;font-family:monospace"></div>
 
-  // Risk Management
-  const [portfolioSize, setPortfolioSize] = useState(()=>Number(localStorage.getItem("portfolio_size")||"1000000"));
-  const [riskProfile, setRiskProfile] = useState(()=>localStorage.getItem("risk_profile")||"medium");
-
-  // Watchlist State
-  const [watchlist, setWatchlist] = useState(() => {
-    try {
-      const saved = localStorage.getItem("stock_watchlist");
-      return saved ? JSON.parse(saved) : [
-        { s: "TKN", p: 4.22, category: "G1S", note: "ยอดขายดีจากปริมาณนักท่องเที่ยวฟื้นตัวชัดเจน", active: true },
-        { s: "SYNTEC", p: 1.68, category: "G2S", note: "Backlog หนาแน่น ราคาปัจจุบันพีอีต่ำต่ำกว่ากลุ่ม", active: true },
-        { s: "AEONTS", p: 95.25, category: "G2S", note: "เริ่มเห็นแนวโน้มตั้งสำรองลดลง คาดกำไรเริ่มฟื้นตัว", active: true },
-        { s: "FSMART", p: 7.70, category: "G2S", note: "ตู้เต่าบินเริ่มขยายไปต่างประเทศและมีรายได้ค่าบริการเติบโต", active: true },
-        { s: "MINT", p: 22.90, category: "G2S", note: "ไฮซีซั่นการท่องเที่ยวโรงแรมในยุโรปกลับมาแข็งแกร่ง", active: true }
-      ];
-    } catch(e) {
-      return [];
-    }
-  });
-
-  // Watchlist form item state
-  const [newSymbol, setNewSymbol] = useState("");
-  const [newPrice, setNewPrice] = useState("");
-  const [newCategory, setNewCategory] = useState("G3S");
-  const [newNote, setNewNote] = useState("");
-
-  // Automated Scheduler state
-  const [schedulerEnabled, setSchedulerEnabled] = useState(()=>localStorage.getItem("scheduler_enabled")==="1");
-  const [morningTime, setMorningTime] = useState(()=>localStorage.getItem("morning_time")||"08:30");
-  const [eveningTime, setEveningTime] = useState(()=>localStorage.getItem("evening_time")||"18:00");
-  const [schedulerLogs, setSchedulerLogs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("scheduler_logs")||"[]"); } catch { return []; }
-  });
-  const [nextRunText, setNextRunText] = useState("");
-
-  // Scraped stocks state
-  const [scrapedList, setScrapedList] = useState([]);
-  const [scraping, setScraping] = useState(false);
-  const [scrapeErr, setScrapeErr] = useState("");
-
-  // Running State
-  const [status, setStatus] = useState({chayakorn:"pending",watsaran:"pending",boss:"pending"});
-  const [output, setOutput] = useState({chayakorn:"",watsaran:"",boss:""});
-  const [running, setRunning] = useState(false);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [history, setHistory] = useState(loadHistory);
-  const [gistStatus, setGistStatus] = useState("");
-
-  // Save Config Helpers
-  const saveWatchlist = (list) => {
-    setWatchlist(list);
-    localStorage.setItem("stock_watchlist", JSON.stringify(list));
-  };
-  
-  const saveKey = (v)=>{ setApiKey(v); localStorage.setItem(prov.storageKey, v); };
-  const saveGhToken = (v)=>{ setGhToken(v); localStorage.setItem("gh_token", v); };
-  const saveGistId = (v)=>{ setGistId(v); localStorage.setItem("gist_id", v); };
-  const saveGeminiModel = (v)=>{ setGeminiModel(v); localStorage.setItem("gemini_model", v); };
-  
-  const switchProvider = (p)=>{
-    setProvider(p); localStorage.setItem("provider", p);
-    setApiKey(localStorage.getItem(PROVIDERS[p].storageKey)||"");
-    setError("");
-  };
-
-  const toggleTokenSave = ()=>setTokenSave(v=>{ localStorage.setItem("token_save", v?"0":"1"); return !v; });
-
-  const addLog = (msg, type = "info") => {
-    const newLog = { id: Date.now(), time: new Date().toLocaleTimeString("th-TH"), msg, type };
-    setSchedulerLogs(prev => {
-      const updated = [newLog, ...prev].slice(0, 50);
-      localStorage.setItem("scheduler_logs", JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const clearLogs = () => {
-    setSchedulerLogs([]);
-    localStorage.removeItem("scheduler_logs");
-  };
-
-  const toggleScheduler = () => {
-    setSchedulerEnabled(prev => {
-      const next = !prev;
-      localStorage.setItem("scheduler_enabled", next ? "1" : "0");
-      addLog(`⏰ ตัวตั้งเวลาถูกเปลี่ยนเป็น: ${next ? "เปิดทำงาน" : "ปิดทำงาน"}`);
-      return next;
-    });
-  };
-
-  const saveSchedulerTimes = (morning, evening) => {
-    setMorningTime(morning);
-    setEveningTime(evening);
-    localStorage.setItem("morning_time", morning);
-    localStorage.setItem("evening_time", evening);
-    addLog(`⏰ อัปเดตเวลาทำงานเช้า: ${morning} | เย็น: ${evening}`);
-  };
-
-  const callAI = (sys,usr,onChunk,tok)=>
-    provider==="claude" ? streamClaude(apiKey,sys,usr,onChunk,tok) : streamGemini(apiKey,sys,usr,onChunk,tok,geminiModel);
-
-  // Auto-run Timer effect
-  useEffect(() => {
-    if (!schedulerEnabled) {
-      setNextRunText("ปิดการทำงานตัวตั้งเวลา");
-      return;
-    }
-
-    const interval = setInterval(() => {
-      const now = new Date();
-      const nowStr = now.toTimeString().split(" ")[0].substring(0, 5); // "HH:MM"
-      const seconds = now.getSeconds();
-      
-      const todayDateStr = now.toLocaleDateString("en-CA");
-      
-      if (nowStr === morningTime && seconds === 0) {
-        const lastDate = localStorage.getItem("last_run_date");
-        const lastSlot = localStorage.getItem("last_run_slot");
-        if (lastDate !== todayDateStr || lastSlot !== "morning") {
-          triggerAutoRun("morning", todayDateStr);
-        }
-      }
-      
-      if (nowStr === eveningTime && seconds === 0) {
-        const lastDate = localStorage.getItem("last_run_date");
-        const lastSlot = localStorage.getItem("last_run_slot");
-        if (lastDate !== todayDateStr || lastSlot !== "evening") {
-          triggerAutoRun("evening", todayDateStr);
-        }
-      }
-
-      setNextRunText(calculateCountdown(now, morningTime, eveningTime));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [schedulerEnabled, morningTime, eveningTime, watchlist, apiKey, volumeSpikes, marketNews, portfolioSize, riskProfile]);
-
-  function calculateCountdown(now, morning, evening) {
-    const parseTime = (timeStr, baseDate) => {
-      const [h, m] = timeStr.split(":").map(Number);
-      const d = new Date(baseDate);
-      d.setHours(h, m, 0, 0);
-      return d;
-    };
-
-    const morningTimeToday = parseTime(morning, now);
-    const eveningTimeToday = parseTime(evening, now);
+  <!-- Results -->
+  <div id="results" style="display:none">
     
-    let nextRun = null;
-    let slotName = "";
-
-    if (now < morningTimeToday) {
-      nextRun = morningTimeToday;
-      slotName = "รอบเช้า";
-    } else if (now < eveningTimeToday) {
-      nextRun = eveningTimeToday;
-      slotName = "รอบเย็น";
-    } else {
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      nextRun = parseTime(morning, tomorrow);
-      slotName = "รอบเช้าพรุ่งนี้";
-    }
-
-    const diffMs = nextRun - now;
-    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    const diffSecs = Math.floor((diffMs % (1000 * 60)) / 1000);
-
-    const pad = (num) => String(num).padStart(2, "0");
-    return `⏳ วิเคราะห์ออโต้รอบถัดไป: ${slotName} (${nextRun.toLocaleTimeString("th-TH", {hour:"2-digit",minute:"2-digit"})}) ในอีก ${pad(diffHrs)}:${pad(diffMins)}:${pad(diffSecs)}`;
-  }
-
-  async function triggerAutoRun(slot, todayDateStr) {
-    addLog(`🤖 เริ่มการวิเคราะห์อัตโนมัติ (${slot === "morning" ? "รอบเช้า" : "รอบเย็น"})`, "info");
-    
-    localStorage.setItem("last_run_date", todayDateStr);
-    localStorage.setItem("last_run_slot", slot);
-    
-    try {
-      await runAnalysis(slot);
-      addLog(`✓ วิเคราะห์อัตโนมัติสำเร็จ (${slot === "morning" ? "รอบเช้า" : "รอบเย็น"}) และบันทึกผลเรียบร้อย`, "success");
-    } catch (e) {
-      addLog(`⚠️ วิเคราะห์อัตโนมัติล้มเหลว: ${e.message}`, "error");
-    }
-  }
-
-  // CORE RUN FUNCTION
-  async function runAnalysis(forcedSlot = null) {
-    if(running) return;
-    if(!apiKey.trim()){ setError("กรอก API Key ก่อน"); return; }
-    
-    const activeStocks = watchlist.filter(s => s.active);
-    if(activeStocks.length === 0){
-      const err = "ยังไม่มีหุ้นที่เลือกใน Watchlist — กรุณาเลือกหุ้นอย่างน้อย 1 ตัว";
-      setError(err);
-      throw new Error(err);
-    }
-    
-    setError(""); setRunning(true); setDone(false); setCopied(false);
-    setOutput({chayakorn:"",watsaran:"",boss:""});
-    setStatus({chayakorn:"pending",watsaran:"pending",boss:"pending"});
-    
-    const g2s = activeStocks.filter(s => s.category === "G2S");
-    const g1s = activeStocks.filter(s => s.category === "G1S");
-    const g3s = activeStocks.filter(s => s.category === "G3S");
-    
-    const g2sStr = g2s.map(s=>`${s.s} ฿${s.p} (โน้ต: ${s.note || "-"})`).join(", ") || "-";
-    const g1sStr = g1s.map(s=>`${s.s} ฿${s.p} (โน้ต: ${s.note || "-"})`).join(", ") || "-";
-    const g3sStr = g3s.map(s=>`${s.s} ฿${s.p} (โน้ต: ${s.note || "-"})`).join(", ") || "-";
-    
-    try {
-      addLog("🔍 กำลังดึงประวัติวิเคราะห์รอบก่อนหน้าเพื่อใช้เป็น Memory Layer...", "info");
-      const prevAnalysis = await getPreviousAnalysis(gistId, ghToken);
-      let memoryContext = "ไม่มีข้อมูลประวัติวิเคราะห์รอบก่อนหน้า";
-      if (prevAnalysis && prevAnalysis.boss) {
-        memoryContext = `ผลการวิเคราะห์รอบก่อนหน้า (${prevAnalysis.date || "ไม่ระบุ"}): \n${prevAnalysis.boss}`;
-        addLog(`✓ โหลดประวัติรอบก่อนหน้าสำเร็จ (${prevAnalysis.date || "ไม่ระบุ"})`, "success");
-      } else {
-        addLog("ℹ️ ไม่พบประวัติรอบก่อนหน้า จะวิเคราะห์โดยเริ่มใหม่", "info");
-      }
-      
-      const currentSlot = forcedSlot || (new Date().getHours() < 12 ? "รอบเช้า (ก่อนเปิดตลาด)" : "รอบเย็น (หลังปิดตลาด)");
-      addLog(`🚀 เริ่มการวิเคราะห์: ${currentSlot}`, "info");
-
-      // Agent 1: ชยกร
-      setStatus(p=>({...p,chayakorn:"running"}));
-      const a1 = await callAI(
-        `คุณคือ "ชยกร" นักคัดกรองหุ้น SET ตอบภาษาไทยและใช้ Markdown ในการจัดหน้า
-วิเคราะห์ความน่าสนใจทางเทคนิคของหุ้นจากข้อมูลที่ให้:
-1. ข้อมูลหุ้นแบ่งตามความแข็งแกร่งของสัญญาณ Heikin Ashi:
-   - g2s (สัญญาณสีเขียวแข็งแกร่ง 2 แท่งขึ้นไป)
-   - g1s (สัญญาณสีเขียวพึ่งเริ่มแท่งแรก)
-   - g3s (สัญญาณอื่นๆ/เฝ้าระวัง)
-2. หุ้นที่มีสัญญาณ Volume Spike (ปริมาณการซื้อขายหนาแน่นผิดปกติ)
-3. ประวัติการวิเคราะห์รอบก่อนหน้า (Memory Layer): ดูการพัฒนาและความเปลี่ยนแปลงของหุ้นว่าดีขึ้นหรือแย่ลง มีตัวใดในรอบก่อนหน้าที่ยังน่าสนใจต่อหรือไม่
-
-รูปแบบการวิเคราะห์:
-- แสดงเป็นรายการหุ้นที่คัดกรองแล้ว (ไม่เกิน 12 ตัว) ระบุชื่อย่อ, ราคาปัจจุบัน, หมวดอุตสาหกรรม (Sector), และวิเคราะห์แนวโน้ม TA สั้นๆ 2-3 บรรทัด
-- สรุปว่าตัวใดมีพัฒนาการดีขึ้นจากรอบก่อนหน้าหรือได้รับปัจจัยสนับสนุนทางเทคนิคที่เด่นชัดที่สุด`,
-        `วิเคราะห์รอบ: ${currentSlot} วันที่ ${dateStr}
-        
---- ข้อมูลหุ้นที่ผู้ใช้งานเลือกในระบบ ---
-🟢🟢 g2s (HA เขียว 2 แท่ง): ${g2sStr}
-🟢 g1s (HA เขียวแท่งแรก): ${g1sStr}
-🟢 g3s (กลุ่มอื่น/เฝ้าระวัง): ${g3sStr}
-
---- หุ้นที่มี Volume Spike วันนี้ ---
-${volumeSpikes || "ไม่มีข้อมูล"}
-
---- ประวัติวิเคราะห์รอบก่อนหน้า (Memory Layer) ---
-${memoryContext}`,
-        (chunk)=>setOutput(p=>({...p,chayakorn:chunk}))
-      );
-      setStatus(p=>({...p,chayakorn:"done",watsaran:"running"}));
-      
-      const a1symbols = tokenSave ? extractSymbols(a1).join(", ") : null;
-      
-      // Agent 2: วศรัญ
-      const a2 = await callAI(
-        `คุณคือ "วศรัญ" นักวิเคราะห์ประเด็นข่าวและปัจจัยสนับสนุน (Catalyst Analyst) ของหุ้นไทย ตอบภาษาไทย
-วิเคราะห์ข่าวและตัวเร่งราคา (Catalyst) เฉพาะหุ้นที่ถูกเลือกมาโดยชยกร:
-- ดูจากข้อมูลข่าวสำคัญประจำวัน และโน้ตพื้นฐานของหุ้นแต่ละตัว
-- ประเมินและจัดอันดับระดับความรุนแรงของ Catalyst เป็น 3 ระดับ:
-  🔴 สูง (High Impact - ข่าวส่งผลกระทบต่อพื้นฐานอย่างมีนัยสำคัญ)
-  🟡 กลาง (Medium Impact - ข่าวส่งผลเชิงบวก/ลบในระยะสั้น)
-  ⚪ ต่ำ (Low Impact - ข่าวทั่วไปหรือไม่มี Catalyst เด่นชัด)
-
-รูปแบบการตอบ:
-เรียงลำดับหุ้นจากระดับผลกระทบสูงไปต่ำ ดังนี้:
-1. **[SYMBOL]** [ระดับความรุนแรง 🔴/🟡/⚪] — [วิเคราะห์ประเด็นข่าว/ตัวเร่งราคา ความยาว 1-2 บรรทัด]`,
-        `ผลการคัดกรองจากชยกร:\n${a1}\n\n--- ข่าวสารและ Catalyst วันนี้ ---\n${marketNews || "ไม่มีประเด็นข่าวพิเศษวันนี้"}`,
-        (chunk)=>setOutput(p=>({...p,watsaran:chunk}))
-      );
-      setStatus(p=>({...p,watsaran:"done",boss:"running"}));
-      
-      // Agent 3: บอส ฒ
-      const a3 = await callAI(
-        `คุณคือ "บอส ฒ" ผู้ฟันธงและจัดการความเสี่ยง (Decision Maker & Risk Manager) ตอบภาษาไทยและใช้ Markdown
-วิเคราะห์และตัดสินใจเลือกหุ้นเด่น 3 อันดับแรก (TOP 3) สำหรับโอกาสวิ่งใน 1-2 สัปดาห์ข้างหน้า
-คำนวณสัดส่วนการลงทุน (Position Sizing) และระดับความเสี่ยงตามข้อมูลพอร์ตโฟลิโอ:
-- พอร์ตโฟลิโอขนาด: ${portfolioSize.toLocaleString()} บาท
-- ระดับความเสี่ยงที่ตั้งไว้: ${riskProfile === "low" ? "ต่ำ (เสี่ยงขาดทุน 1.5% ของพอร์ตต่อไม้)" : riskProfile === "medium" ? "ปานกลาง (เสี่ยงขาดทุน 4% ของพอร์ตต่อไม้)" : "สูง (เสี่ยงขาดทุน 7% ของพอร์ตต่อไม้)"}
-
-ขั้นตอนการวิเคราะห์:
-1. ประเมินทิศทางเชิงเทคนิค (จากชยกร) ร่วมกับข่าว Catalyst (จากวศรัญ)
-2. คัดเลือกหุ้นเด่นที่สุด TOP 3 ตัว
-3. กำหนดแนวรับ/ราคาซื้อ (Entry), เป้าหมายทำกำไร (Target), และจุดตัดขาดทุน (Stop Loss) ให้ชัดเจน
-4. **คำนวณ Position Sizing** อย่างแม่นยำ:
-   - เงินขาดทุนที่ยอมรับได้ (Risk Amount) = ขนาดพอร์ต * เปอร์เซ็นต์ความเสี่ยง
-   - ราคาที่ยอมรับความเสี่ยงได้ (Risk Per Share) = Entry - Stop Loss
-   - จำนวนหุ้นที่ควรซื้อ (Position Shares) = Risk Amount / Risk Per Share
-   - เงินลงทุนที่แนะนำ (Recommended Investment THB) = Position Shares * Entry
-   - (หมายเหตุ: หากระยะ Stop Loss แคบมาก ให้ช่วยคุมสัดส่วนเงินลงทุนแนะนำไม่ให้เกิน 15% ของพอร์ตในหุ้นตัวนั้นๆ เพื่อป้องกันการกระจุกตัวของพอร์ต)
-
-รูปแบบการฟันธง:
-## 🥇 อันดับ N | [SYMBOL] @ [ราคาซื้อแนะนำ]
-- **สรุปเหตุผลฟันธง (TA + Catalyst):** [อธิบายสั้นๆ 1-2 บรรทัด]
-- **เป้าหมายกำไร (Target):** X.XX บาท
-- **จุดตัดขาดทุน (Stop Loss):** X.XX บาท
-- **ระดับความเชื่อมั่น:** ⭐⭐⭐/⭐⭐/⭐
-- **คำแนะนำการลงทุน (Position Sizing):**
-  - เงินลงทุนแนะนำ: **[จำนวนเงิน] บาท** (ประมาณ **[จำนวนหุ้น] หุ้น**)
-  - ความเสี่ยงสูงสุดต่อพอร์ต: **[เปอร์เซ็นต์]% (เป็นเงิน [จำนวนเงิน] บาท)**`,
-        tokenSave
-          ? `หุ้นที่ผ่านการคัดเลือก: ${a1symbols}\nวศรัญ:\n${a2}`
-          : `ชยกร:\n${a1}\nวศรัญ:\n${a2}`,
-        (chunk)=>setOutput(p=>({...p,boss:chunk}))
-      );
-      setStatus(p=>({...p,boss:"done"}));
-      setDone(true);
-      
-      saveHistory(dateStr, a3);
-      setHistory(loadHistory());
-      
-      if(ghToken.trim()){
-        setGistStatus("saving");
-        try{
-          await saveToGist(gistId, ghToken, {
-            updated: new Date().toISOString(),
-            date: dateStr,
-            slot: currentSlot,
-            provider,
-            chayakorn: a1,
-            watsaran:  a2,
-            boss:      a3,
-          });
-          setGistStatus("saved");
-          addLog("✓ เผยแพร่ข้อมูลขึ้น GitHub Gist สำเร็จแล้ว", "success");
-        }catch(e){
-          setGistStatus("error: "+e.message);
-          addLog("⚠️ เผยแพร่ล้มเหลว: "+e.message, "error");
-        }
-      }
-    } catch(e) {
-      setError("⚠️ เกิดข้อผิดพลาด: "+e.message);
-      addLog(`⚠️ วิเคราะห์ล้มเหลว: ${e.message}`, "error");
-      setStatus(p=>({
-        chayakorn: p.chayakorn==="running"?"done":p.chayakorn,
-        watsaran: p.watsaran ==="running"?"done":p.watsaran,
-        boss: p.boss ==="running"?"done":p.boss,
-      }));
-    } finally {
-      setRunning(false);
-    }
-  }
-
-  // Add stock item to watchlist
-  const handleAddStock = (e) => {
-    e.preventDefault();
-    if (!newSymbol.trim()) return;
-    const symbol = newSymbol.trim().toUpperCase();
-    const price = parseFloat(newPrice) || 0;
-    
-    // Check duplicates
-    if (watchlist.some(s => s.s === symbol)) {
-      alert("มีหุ้นตัวนี้อยู่ใน Watchlist แล้ว!");
-      return;
-    }
-
-    const updated = [...watchlist, {
-      s: symbol,
-      p: price,
-      category: newCategory,
-      note: newNote,
-      active: true
-    }];
-    saveWatchlist(updated);
-    
-    setNewSymbol("");
-    setNewPrice("");
-    setNewNote("");
-    addLog(`➕ เพิ่มหุ้น ${symbol} เข้า Watchlist (${newCategory})`);
-  };
-
-  const handleRemoveStock = (symbol) => {
-    if(!confirm(`ต้องการลบหุ้น ${symbol} ออกจาก Watchlist หรือไม่?`)) return;
-    const updated = watchlist.filter(s => s.s !== symbol);
-    saveWatchlist(updated);
-    addLog(`❌ ลบหุ้น ${symbol} ออกจาก Watchlist`);
-  };
-
-  const handleToggleActive = (symbol) => {
-    const updated = watchlist.map(s => s.s === symbol ? { ...s, active: !s.active } : s);
-    saveWatchlist(updated);
-  };
-
-  const handleCategoryChange = (symbol, cat) => {
-    const updated = watchlist.map(s => s.s === symbol ? { ...s, category: cat } : s);
-    saveWatchlist(updated);
-  };
-
-  const handlePriceChange = (symbol, priceStr) => {
-    const price = parseFloat(priceStr) || 0;
-    const updated = watchlist.map(s => s.s === symbol ? { ...s, p: price } : s);
-    saveWatchlist(updated);
-  };
-
-  const handleNoteChange = (symbol, note) => {
-    const updated = watchlist.map(s => s.s === symbol ? { ...s, note } : s);
-    saveWatchlist(updated);
-  };
-
-  // Perform Scrape of Hoonstation
-  const triggerScrape = async () => {
-    setScraping(true);
-    setScrapeErr("");
-    setScrapedList([]);
-    try {
-      addLog("🌐 กำลังดึงรายชื่อหุ้นจาก hoonstation.com/top_hagreen...");
-      const stocks = await scrapeHoonstation();
-      setScrapedList(stocks);
-      addLog(`✓ ดึงรายชื่อหุ้นสำเร็จ พบ ${stocks.length} ตัว`);
-    } catch(e) {
-      setScrapeErr(e.message);
-      addLog(`⚠️ ดึงรายชื่อหุ้นล้มเหลว: ${e.message}`, "error");
-    } finally {
-      setScraping(false);
-    }
-  };
-
-  // Add scraped items to watchlist
-  const importScrapedStocks = () => {
-    let addedCount = 0;
-    const updated = [...watchlist];
-    scrapedList.forEach(sc => {
-      if (!updated.some(w => w.s === sc.s)) {
-        updated.push({
-          s: sc.s,
-          p: sc.p,
-          category: "G3S", // default category
-          note: "นำเข้าอัตโนมัติจาก Hoonstation",
-          active: true
-        });
-        addedCount++;
-      }
-    });
-    if (addedCount > 0) {
-      saveWatchlist(updated);
-      addLog(`📥 นำเข้าหุ้นจาก Hoonstation จำนวน ${addedCount} ตัว`);
-      alert(`นำเข้าหุ้นสำเร็จ ${addedCount} ตัว!`);
-    } else {
-      alert("หุ้นทั้งหมดมีใน Watchlist อยู่แล้ว!");
-    }
-    setScrapedList([]);
-  };
-
-  const copyBoss = () => {
-    const text = output.boss;
-    if(!text) return;
-    navigator.clipboard.writeText(text).then(()=>{
-      setCopied(true);
-      setTimeout(()=>setCopied(false),2000);
-    });
-  };
-
-  const loadFromHistory = (h) => {
-    setOutput(p=>({...p,boss:h.boss}));
-    setStatus({chayakorn:"done",watsaran:"done",boss:"done"});
-    setDone(true);
-    setTab("dashboard");
-    setDateStr(h.dateStr);
-  };
-
-  return(
-    <div style={{ maxWidth: 840, margin: "0 auto", padding: "24px 16px" }}>
-      
-      {/* Header Panel */}
-      <div className="glass-card" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 14, background: "rgba(10, 25, 47, 0.7)", borderColor: "rgba(0, 212, 255, 0.15)" }}>
-        <div>
-          <div style={{ display: "inline-block", background: "var(--primary-glow)", border: "1px solid var(--primary)", borderRadius: 8, padding: "3px 10px", fontSize: 10, color: "var(--primary)", fontFamily: "'Share Tech Mono', monospace", letterSpacing: 1.5, marginBottom: 6 }}>
-            STOCK HUNTER CONTROL CENTER
-          </div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-            🤖 3-Agent Stock Hunter
-          </h1>
-        </div>
-
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 13, color: "var(--green)", fontWeight: "bold", display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 8, height: 8, background: "#4ade80", borderRadius: "50%", display: "inline-block", animation: schedulerEnabled ? "blink 1.2s infinite" : "none" }}/>
-            {schedulerEnabled ? "Scheduler Active" : "Scheduler Offline"}
-          </div>
-          <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "'Share Tech Mono', monospace", marginTop: 4 }}>
-            SYSTEM DATE: {dateStr}
-          </div>
-        </div>
+    <div class="card card-boss" style="border-width:1.5px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid rgba(255,77,109,0.15);padding-bottom:10px">
+        <div class="label" style="color:#ff4d6d;margin-bottom:0">⚡ AGENT 3 — บอส ฒ · ผู้ฟันธง & จัดการความเสี่ยง</div>
+        <button id="copy-btn" onclick="copyBoss()" style="background:rgba(255,77,109,0.1);
+          border:1px solid rgba(255,77,109,0.3);color:rgba(255,77,109,0.8);border-radius:6px;
+          padding:4px 12px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;transition:all 0.2s">
+          copy
+        </button>
       </div>
-
-      {/* Countdown Bar if Enabled */}
-      {schedulerEnabled && (
-        <div style={{
-          background: "linear-gradient(90deg, rgba(0, 212, 255, 0.08), rgba(167, 139, 250, 0.08))",
-          border: "1px solid rgba(0, 212, 255, 0.15)", borderRadius: 12, padding: "10px 16px",
-          marginBottom: 16, fontSize: 12.5, fontWeight: "600", color: "#fff", display: "flex",
-          justifyContent: "space-between", alignItems: "center", animation: "fadeIn 0.5s ease"
-        }}>
-          <span style={{ fontFamily: "monospace" }}>{nextRunText}</span>
-          <span style={{ fontSize: 10, color: "var(--text-muted)" }}>เช้า: {morningTime} | เย็น: {eveningTime}</span>
-        </div>
-      )}
-
-      {/* Tab Navigation */}
-      <div className="tabs-nav">
-        <button className={`tab-btn ${tab === "dashboard" ? "active" : ""}`} onClick={() => setTab("dashboard")}>💻 แผงวิเคราะห์</button>
-        <button className={`tab-btn ${tab === "watchlist" ? "active" : ""}`} onClick={() => setTab("watchlist")}>📈 จัดการหุ้น ({watchlist.length})</button>
-        <button className={`tab-btn ${tab === "inputs" ? "active" : ""}`} onClick={() => setTab("inputs")}>📰 ข้อมูลข่าวสาร & ข้อมูลเสริม</button>
-        <button className={`tab-btn ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>⚙️ ตั้งค่าระบบ</button>
-        <button className={`tab-btn ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>🕐 ประวัติย้อนหลัง</button>
-      </div>
-
-      {error && (
-        <div style={{
-          background: "rgba(255,77,77,0.08)", border: "1px solid rgba(255,77,77,0.3)",
-          borderRadius: 10, padding: "12px 16px", marginBottom: 16, color: "#ff7777",
-          fontSize: 13, fontFamily: "monospace"
-        }}>⚠️ {error}</div>
-      )}
-
-      {/* ==================== TAB: DASHBOARD ==================== */}
-      {tab === "dashboard" && (
-        <div>
-          {/* Dashboard Header actions */}
-          <div className="glass-card" style={{ textAlign: "center", padding: "26px 20px" }}>
-            <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 16 }}>
-              คัดกรองหุ้นแบบ 3 Agents (นักคัดกรอง 🔍 &rarr; นักวิเคราะห์ข่าว 📰 &rarr; ผู้ฟันธง ⚡)
-              <br/>
-              ระบบวิเคราะห์เฉพาะหุ้นที่เลือกเปิดทำงานในหน้า <strong>จัดการหุ้น</strong> (เปิดอยู่ {watchlist.filter(s=>s.active).length} ตัว)
-            </p>
-
-            <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
-              <button className="btn btn-primary" onClick={() => runAnalysis()} disabled={running} style={{ fontSize: 14, padding: "12px 36px" }}>
-                {running ? "🔄 กำลังวิเคราะห์ทีละขั้นตอน..." : done ? "🔁 เริ่มวิเคราะห์ใหม่อีกครั้ง" : "🚀 สั่งรันวิเคราะห์แบบ 3 Agents"}
-              </button>
-            </div>
-
-            {/* Micro progress status */}
-            {running && (
-              <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 20, fontSize: 11, fontFamily: "monospace" }}>
-                <span style={{ color: status.chayakorn==="running"?"#00d4ff":status.chayakorn==="done"?"#4ade80":"#888" }}>
-                  ชยกร: {status.chayakorn==="running"?"กำลังรัน...":status.chayakorn==="done"?"เสร็จสิ้น ✓":"รอคิว"}
-                </span>
-                <span style={{ color: status.watsaran==="running"?"#f59e0b":status.watsaran==="done"?"#4ade80":"#888" }}>
-                  วศรัญ: {status.watsaran==="running"?"กำลังรัน...":status.watsaran==="done"?"เสร็จสิ้น ✓":"รอคิว"}
-                </span>
-                <span style={{ color: status.boss==="running"?"#ff4d6d":status.boss==="done"?"#4ade80":"#888" }}>
-                  บอส ฒ: {status.boss==="running"?"กำลังรัน...":status.boss==="done"?"เสร็จสิ้น ✓":"รอคิว"}
-                </span>
-              </div>
-            )}
-
-            {gistStatus && (
-              <div style={{ marginTop: 12, fontSize: 11, color: gistStatus.startsWith("error") ? "#ff5555" : "var(--primary)" }}>
-                {gistStatus === "saving" ? "⏳ กำลังเผยแพร่ขึ้น Github Gist..." : 
-                 gistStatus === "saved" ? "✓ เผยแพร่ขึ้นเว็บสาธารณะเรียบร้อยแล้ว!" : gistStatus}
-              </div>
-            )}
-          </div>
-
-          {/* Results display */}
-          <AgentCard ag={AGENTS.chayakorn} status={status.chayakorn} output={output.chayakorn} step={1}/>
-          <AgentCard ag={AGENTS.watsaran}  status={status.watsaran}  output={output.watsaran}  step={2}/>
-          <AgentCard ag={AGENTS.boss} status={status.boss} output={output.boss} step={3} onCopy={copyBoss} copied={copied}/>
-
-          {done && (
-            <div style={{ textAlign: "center", marginTop: 10, padding: "10px 14px", background: "rgba(255,77,109,0.03)", border: "1px solid rgba(255,77,109,0.1)", borderRadius: 10, color: "var(--text-muted)", fontSize: 11 }}>
-              ⚠️ การประเมินและคัดกรองเบื้องต้นนี้ทำเพื่อการศึกษาประกอบการคัดกรอง ไม่ใช่การชักชวนหรือรับประกันความมั่นคงใดๆ
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ==================== TAB: WATCHLIST ==================== */}
-      {tab === "watchlist" && (
-        <div>
-          {/* Scraper Panel */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, color: "#fff" }}>🌐 ดึงหุ้นยอดนิยมจาก Hoonstation</h3>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 14 }}>
-              ดึงข้อมูลหุ้นที่มีสัญญาณ Heikin Ashi เขียว เพื่อนำเข้ามาคัดเลือกต่อโดยไม่ต้องก็อปปี้วางทีละตัว
-            </p>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <button className="btn btn-secondary" onClick={triggerScrape} disabled={scraping}>
-                {scraping ? "⏳ กำลังเรียกข้อมูลจากเซิร์ฟเวอร์..." : "ดึงข้อมูลจาก hoonstation.com/top_hagreen"}
-              </button>
-              {scrapedList.length > 0 && (
-                <button className="btn btn-primary" onClick={importScrapedStocks}>
-                  📥 นำเข้าหุ้นทั้งหมดที่ดึงได้ ({scrapedList.length} ตัว) เข้า Watchlist
-                </button>
-              )}
-            </div>
-            {scrapeErr && (
-              <div style={{ color: "#ff5555", fontSize: 11, marginTop: 8 }}>⚠️ ขออภัย: {scrapeErr} (มีข้อจำกัดเรื่อง CORS แนะนำให้ก็อปปี้หน้าเว็บมาวางเองที่แถบขวา)</div>
-            )}
-            
-            {/* Scraped Stocks Preview */}
-            {scrapedList.length > 0 && (
-              <div style={{ marginTop: 14, background: "rgba(0,0,0,0.2)", padding: 12, borderRadius: 8 }}>
-                <div style={{ fontSize: 11, fontWeight: "bold", color: "var(--primary)", marginBottom: 6 }}>รายชื่อหุ้นที่ดึงได้:</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {scrapedList.map(s => (
-                    <span key={s.s} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, padding: "2px 6px", fontSize: 10 }}>
-                      {s.s} ฿{s.p}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Add Stock Form */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: "#fff" }}>➕ เพิ่มหุ้นเข้า Watchlist</h3>
-            <form onSubmit={handleAddStock} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, alignItems: "end" }}>
-              <div>
-                <span className="input-label">ชื่อหุ้น (Symbol)</span>
-                <input type="text" required value={newSymbol} onChange={e=>setNewSymbol(e.target.value)} placeholder="เช่น TKN, MINT" className="text-field" style={{ textTransform: "uppercase" }}/>
-              </div>
-              <div>
-                <span className="input-label">ราคาปัจจุบัน (฿)</span>
-                <input type="number" step="0.01" value={newPrice} onChange={e=>setNewPrice(e.target.value)} placeholder="ราคา เช่น 4.22" className="text-field"/>
-              </div>
-              <div>
-                <span className="input-label">กลุ่มสัญญาณ (Category)</span>
-                <select value={newCategory} onChange={e=>setNewCategory(e.target.value)} className="text-field" style={{ background: "#050a14" }}>
-                  <option value="G2S">🟢🟢 G2S (HA เขียว 2 แท่ง)</option>
-                  <option value="G1S">🟢 G1S (HA เขียวแท่งแรก)</option>
-                  <option value="G3S">⚪ G3S (กลุ่มอื่น/เฝ้าระวัง)</option>
-                </select>
-              </div>
-              <div>
-                <button type="submit" className="btn btn-primary" style={{ width: "100%", padding: "10px" }}>เพิ่มลงลิสต์</button>
-              </div>
-            </form>
-            <div style={{ marginTop: 10 }}>
-              <span className="input-label">โน้ตประเด็นพื้นฐาน / สรุปความเห็น</span>
-              <input type="text" value={newNote} onChange={e=>setNewNote(e.target.value)} placeholder="เช่น ผลประกอบการฟื้นตัว, คาดรับรู้รายได้โครงการใหญ่" className="text-field"/>
-            </div>
-          </div>
-
-          {/* Watchlist Table */}
-          <div className="glass-card" style={{ overflowX: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>📋 รายการหุ้นใน Watchlist ({watchlist.length} ตัว)</h3>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>เลือกตัวที่ต้องการเพื่อส่งเข้า AI วิเคราะห์</div>
-            </div>
-            
-            {watchlist.length === 0 ? (
-              <div style={{ padding: "30px", textAlignment: "center", color: "var(--text-muted)" }}>
-                ยังไม่มีข้อมูลหุ้นใน Watchlist — ดึงข้อมูลจาก Hoonstation หรือพิมพ์เพิ่มด้านบน
-              </div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", textAlignment: "left" }}>
-                    <th style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-muted)" }}>เปิดวิเคราะห์</th>
-                    <th style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-muted)" }}>ชื่อหุ้น</th>
-                    <th style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-muted)" }}>ราคาปัจจุบัน</th>
-                    <th style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-muted)" }}>กลุ่มสัญญาณ</th>
-                    <th style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-muted)" }}>ประเด็นสำคัญ/พื้นฐาน</th>
-                    <th style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-muted)", textAlignment: "center" }}>จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {watchlist.map((s, index) => (
-                    <tr key={s.s} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: index%2===0?"rgba(255,255,255,0.01)":"transparent" }}>
-                      <td style={{ padding: "10px" }}>
-                        <input type="checkbox" checked={s.active} onChange={() => handleToggleActive(s.s)} style={{ width: 16, height: 16, cursor: "pointer" }}/>
-                      </td>
-                      <td style={{ padding: "10px", fontWeight: "bold", color: "#fff" }}>{s.s}</td>
-                      <td style={{ padding: "10px" }}>
-                        <input type="number" step="0.01" value={s.p} onChange={(e) => handlePriceChange(s.s, e.target.value)} className="text-field" style={{ width: 80, padding: "4px 6px" }}/>
-                      </td>
-                      <td style={{ padding: "10px" }}>
-                        <select value={s.category} onChange={(e) => handleCategoryChange(s.s, e.target.value)} className="text-field" style={{ width: 110, padding: "4px 6px", fontSize: 11, background: "#050a14" }}>
-                          <option value="G2S">G2S (เขียว 2)</option>
-                          <option value="G1S">G1S (เขียว 1)</option>
-                          <option value="G3S">G3S (อื่นๆ)</option>
-                        </select>
-                      </td>
-                      <td style={{ padding: "10px" }}>
-                        <input type="text" value={s.note || ""} onChange={(e) => handleNoteChange(s.s, e.target.value)} placeholder="ใส่ปัจจัยพื้นฐาน..." className="text-field" style={{ padding: "4px 8px" }}/>
-                      </td>
-                      <td style={{ padding: "10px", textAlignment: "center" }}>
-                        <button onClick={() => handleRemoveStock(s.s)} style={{ background: "rgba(255,77,109,0.1)", border: "1px solid rgba(255,77,109,0.25)", color: "#ff4d6d", borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 11 }}>ลบ</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ==================== TAB: INPUTS ==================== */}
-      {tab === "inputs" && (
-        <div>
-          <div className="glass-card">
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, color: "#fff" }}>📰 ข้อมูลประกอบการวิเคราะห์รายวัน</h3>
-            
-            <div style={{ marginBottom: 16 }}>
-              <span className="input-label">📅 วันที่วิเคราะห์ (แสดงผลในหัวเว็บ)</span>
-              <input value={dateStr} onChange={e=>setDateStr(e.target.value)} className="text-field"/>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <span className="input-label">🔥 หุ้นที่มีการสะสมปริมาณการซื้อขายหนาแน่น (Volume Spikes)</span>
-              <textarea value={volumeSpikes} onChange={e=>{ setVolumeSpikes(e.target.value); localStorage.setItem("volume_spikes", e.target.value); }} placeholder="ใส่ชื่อหุ้นย่อหรือรายละเอียดสั้นๆ เช่น&#10;TKN (Volume 250% เกินค่าเฉลี่ย 5 วัน)&#10;MINT, SYNTEC" rows={3} className="text-field"/>
-            </div>
-
-            <div>
-              <span className="input-label">📰 ข่าวเศรษฐกิจและ Catalyst ประจำวัน (ข่าวในประเทศ/ต่างประเทศ)</span>
-              <textarea value={marketNews} onChange={e=>{ setMarketNews(e.target.value); localStorage.setItem("market_news", e.target.value); }} placeholder="พิมพ์หรือก็อปปี้ข่าวสำคัญมาวางที่นี่ เช่น&#10;- กนง. มีมติคงอัตราดอกเบี้ยนโยบายที่ 2.50% ต่อปี&#10;- การท่องเที่ยวแห่งประเทศไทยประกาศยอดนักท่องเที่ยวจีนสะสมทะลุเป้าหมาย&#10;- หุ้นกลุ่มพัฒนาอสังหาฯ ได้อานิสงส์มาตรการลดหย่อนภาษี" rows={6} className="text-field"/>
-            </div>
-          </div>
-
-          {/* Quick manual parser for copy pasting lists */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10, color: "#fff" }}>📋 นำเข้าข้อมูลหุ้นแบบด่วน (Quick Paste Parser)</h3>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
-              วางข้อความดิบที่มีชื่อหุ้นและราคาปะปนอยู่ (เช่น ก็อปปี้มาจากแอปหรือหน้าเว็บอื่น) ระบบจะกรองชื่อย่อหุ้นและราคาเพิ่มเข้าลิสต์ Watchlist อัตโนมัติ
-            </p>
-            <textarea id="quick-paste-box" placeholder="วางข้อความที่นี่ เช่น SYNTEC 1.68 AEONTS 95.25 หรือข้อความตาราง" rows={3} className="text-field" style={{ marginBottom: 10 }}/>
-            <button className="btn btn-secondary" onClick={() => {
-              const box = document.getElementById("quick-paste-box");
-              const text = box.value;
-              if(!text.trim()) return;
-              const stocks = parseStocks(text);
-              if(stocks.length === 0){
-                alert("ไม่สามารถวิเคราะห์หาชื่อหุ้นและราคาจากข้อความนี้ได้");
-                return;
-              }
-              const updated = [...watchlist];
-              let added = 0;
-              stocks.forEach(s => {
-                if(!updated.some(w => w.s === s.s)){
-                  updated.push({ s: s.s, p: s.p, category: "G3S", note: "นำเข้าด่วน", active: true });
-                  added++;
-                }
-              });
-              saveWatchlist(updated);
-              box.value = "";
-              alert(`เพิ่มหุ้นเข้า Watchlist สำเร็จ ${added} ตัว!`);
-            }}>วิเคราะห์และเพิ่มเข้า Watchlist</button>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== TAB: SETTINGS ==================== */}
-      {tab === "settings" && (
-        <div>
-          {/* API Keys */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, color: "#fff" }}>🔑 คีย์บริการ AI & สิทธิ์เข้าถึง</h3>
-            
-            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-              {Object.entries(PROVIDERS).map(([key,p])=>(
-                <button key={key} onClick={()=>switchProvider(key)} style={{
-                  flex:1, padding:"10px 6px", borderRadius:8, cursor:"pointer",
-                  transition:"all 0.2s", fontSize:12, fontWeight:600,
-                  background: provider===key?"rgba(255,255,255,0.06)":"transparent",
-                  border: provider===key?"1px solid rgba(255,255,255,0.15)":"1px solid rgba(255,255,255,0.05)",
-                  color: provider===key?"#fff":"rgba(255,255,255,0.4)"}}>
-                  <div>{p.label}</div>
-                  <div style={{fontSize:9, color:provider===key?p.tagColor:"rgba(255,255,255,0.2)", marginTop:2}}>{p.tag}</div>
-                </button>
-              ))}
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <label className="input-label">🔑 API KEY สำหรับ {prov.label.toUpperCase()}</label>
-              <input type="password" value={apiKey} onChange={e=>saveKey(e.target.value)} placeholder={prov.placeholder} className="text-field"/>
-              {provider === "gemini" && (
-                <div style={{ fontSize: 11, color: "#4ade80", marginTop: 6, lineHeight: 1.5 }}>
-                  💡 สมัครและรับ API Key ของ Gemini <strong>ฟรี 100%</strong> ได้ที่ <a href="https://aistudio.google.com/" target="_blank" style={{ color: "#00d4ff", textDecoration: "underline", fontWeight: "bold" }}>Google AI Studio</a> (รันฟรีไม่มีค่าใช้จ่ายตลอดชีพในการใช้งานทั่วไป)
-                </div>
-              )}
-            </div>
-
-            {provider === "gemini" && (
-              <div style={{ marginBottom: 14 }}>
-                <label className="input-label">🤖 เลือกโมเดล Gemini</label>
-                <select value={geminiModel} onChange={e=>saveGeminiModel(e.target.value)} className="text-field" style={{ background: "#050a14" }}>
-                  {GEMINI_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            )}
-
-            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 14, marginTop: 14 }}>
-              <label className="input-label">🐙 GITHUB PERSONAL ACCESS TOKEN (สำหรับอัปโหลดขึ้นเว็บ)</label>
-              <input type="password" value={ghToken} onChange={e=>saveGhToken(e.target.value)} placeholder="ghp_..." className="text-field" style={{ marginBottom: 10 }}/>
-              
-              <label className="input-label">📄 GITHUB GIST ID (สำหรับเก็บหน้าแสดงผล)</label>
-              <input type="text" value={gistId} onChange={e=>saveGistId(e.target.value)} placeholder="82fd61..." className="text-field"/>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, padding: "8px 12px", borderRadius: 8, background: tokenSave ? "rgba(74,222,128,0.03)" : "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <div>
-                <div style={{ color: tokenSave ? "#4ade80" : "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: 600 }}>⚡ โหมดประหยัด Token</div>
-                <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 10, marginTop: 2 }}>ส่งเฉพาะรหัสย่อและข่าวให้ Agent 2-3 (ลดขนาด Token ได้ 70%)</div>
-              </div>
-              <button onClick={toggleTokenSave} className="btn" style={{ background: tokenSave ? "rgba(74,222,128,0.12)" : "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: tokenSave ? "#4ade80" : "#888", borderRadius: 20, padding: "4px 14px", fontSize: 11, fontWeight: "bold" }}>
-                {tokenSave ? "เปิดใช้งาน" : "ปิดใช้งาน"}
-              </button>
-            </div>
-          </div>
-
-          {/* Portfolio & Risk Setting */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, color: "#fff" }}>🛡️ ตั้งค่าขนาดพอร์ต & การคุมความเสี่ยง (Position Sizing)</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <span className="input-label">ขนาดพอร์ตโฟลิโอรวม (บาท)</span>
-                <input type="number" value={portfolioSize} onChange={e=>{ setPortfolioSize(Number(e.target.value)); localStorage.setItem("portfolio_size", e.target.value); }} className="text-field"/>
-              </div>
-              <div>
-                <span className="input-label">ระดับความเสี่ยงที่รับได้ต่อไม้</span>
-                <select value={riskProfile} onChange={e=>{ setRiskProfile(e.target.value); localStorage.setItem("risk_profile", e.target.value); }} className="text-field" style={{ background: "#050a14" }}>
-                  <option value="low">ต่ำ (เสี่ยงขาดทุน 1.5% ต่อไม้)</option>
-                  <option value="medium">ปานกลาง (เสี่ยงขาดทุน 4% ต่อไม้)</option>
-                  <option value="high">สูง (เสี่ยงขาดทุน 7% ต่อไม้)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Scheduler configuration */}
-          <div className="glass-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>⏰ ตั้งเวลาทำภารกิจอัตโนมัติ (Scheduler)</h3>
-              <button className="btn" onClick={toggleScheduler} style={{
-                background: schedulerEnabled ? "rgba(74, 222, 128, 0.12)" : "rgba(255, 255, 255, 0.04)",
-                borderColor: schedulerEnabled ? "rgba(74, 222, 128, 0.3)" : "rgba(255, 255, 255, 0.1)",
-                color: schedulerEnabled ? "#4ade80" : "rgba(255, 255, 255, 0.4)",
-                padding: "5px 16px", borderRadius: 20, fontSize: 11
-              }}>
-                {schedulerEnabled ? "เปิดระบบ" : "ปิดระบบ"}
-              </button>
-            </div>
-            
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 14 }}>
-              *เพื่อให้การทำงานออโต้ดำเนินไปได้ ต้องเปิดหน้าจอนี้ทิ้งไว้บนบราวเซอร์ของเครื่องคอมพิวเตอร์ที่รันระบบ
-            </p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-              <div>
-                <span className="input-label">เวลาประเมินรอบเช้า (ก่อนตลาดเปิด)</span>
-                <input type="time" value={morningTime} onChange={e=>saveSchedulerTimes(e.target.value, eveningTime)} className="text-field"/>
-              </div>
-              <div>
-                <span className="input-label">เวลาประเมินรอบเย็น (หลังปิดตลาด)</span>
-                <input type="time" value={eveningTime} onChange={e=>saveSchedulerTimes(morningTime, e.target.value)} className="text-field"/>
-              </div>
-            </div>
-
-            {/* Scheduler Logs */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <span className="input-label" style={{ marginBottom: 0 }}>📊 บันทึกการทำงานระบบอัตโนมัติ</span>
-              <button onClick={clearLogs} style={{ background: "transparent", border: "none", color: "var(--accent)", fontSize: 10, cursor: "pointer", textDecoration: "underline" }}>ล้างบันทึก</button>
-            </div>
-            
-            <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: 12, height: 160, overflowY: "auto", fontFamily: "monospace", fontSize: 11 }}>
-              {schedulerLogs.length === 0 ? (
-                <div style={{ color: "var(--text-muted)", padding: "10px 0" }}>ไม่มีบันทึกการวิเคราะห์อัตโนมัติในปัจจุบัน...</div>
-              ) : (
-                schedulerLogs.map(l => (
-                  <div key={l.id} style={{ marginBottom: 4, borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: 4, display: "flex", gap: 8 }}>
-                    <span style={{ color: "var(--text-muted)" }}>[{l.time}]</span>
-                    <span style={{ 
-                      color: l.type === "success" ? "#4ade80" : 
-                             l.type === "error" ? "#ff5555" : 
-                             l.type === "info" ? "#00d4ff" : "#fff" 
-                    }}>{l.msg}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== TAB: HISTORY ==================== */}
-      {tab === "history" && (
-        <div className="glass-card">
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, color: "#fff" }}>🕐 บันทึกประวัติวิเคราะห์ย้อนหลัง</h3>
-          {history.length === 0 ? (
-            <div style={{ padding: "30px", textAlignment: "center", color: "var(--text-muted)" }}>ไม่มีประวัติบันทึกการวิเคราะห์ย้อนหลังในบราวเซอร์นี้</div>
-          ) : (
-            <div>
-              {history.map((h) => (
-                <div key={h.ts} style={{
-                  background: "rgba(0, 0, 0, 0.2)", border: "1px solid rgba(255, 255, 255, 0.05)",
-                  borderRadius: 12, padding: "14px 18px", marginBottom: 10, display: "flex",
-                  flexDirection: "column", gap: 10
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontWeight: "bold", color: "var(--primary)", fontSize: 13, fontFamily: "monospace" }}>📅 รอบวันที่ {h.dateStr}</span>
-                    <button onClick={() => loadFromHistory(h)} className="btn btn-secondary" style={{ padding: "4px 12px", fontSize: 11 }}>โหลดข้อมูลขึ้นมาดู</button>
-                  </div>
-                  <div style={{
-                    fontSize: 12.5, whiteSpace: "pre-wrap", color: "rgba(255, 255, 255, 0.8)",
-                    lineHeight: 1.7, maxHeight: 150, overflowY: "auto", background: "rgba(0,0,0,0.15)",
-                    padding: 10, borderRadius: 8
-                  }}>{h.boss}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
+      <div id="out-boss" class="content"></div>
     </div>
-  );
+
+    <div class="card card-ck">
+      <div class="label" style="color:#00d4ff;border-bottom:1px solid rgba(0, 212, 255, 0.15);padding-bottom:8px">🔍 AGENT 1 — ชยกร · นักคัดกรองหุ้นเทคนิค</div>
+      <div id="out-ck" class="content"></div>
+    </div>
+    
+    <div class="card card-ws">
+      <div class="label" style="color:#f59e0b;border-bottom:1px solid rgba(245, 158, 11, 0.15);padding-bottom:8px">📰 AGENT 2 — วศรัญ · นักวิเคราะห์ประเด็นข่าวและตัวเร่ง</div>
+      <div id="out-ws" class="content"></div>
+    </div>
+
+    <div style="text-align:center;margin-top:10px;padding:10px 14px;
+      background:rgba(255,77,109,0.03);border:1px solid rgba(255,77,109,0.1);
+      border-radius:12px;color:var(--text-muted);font-size:11.5px">
+      ⚠️ การประเมินและวิเคราะห์เบื้องต้นนี้ไม่ใช่คำแนะนำหรือเชิญชวนการลงทุน โปรดศึกษาข้อมูลความเสี่ยงด้วยตัวเอง
+    </div>
+  </div>
+
+  <!-- Refresh -->
+  <div style="text-align:center;margin-top:24px">
+    <button onclick="load()" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);
+      color:rgba(255,255,255,0.4);border-radius:8px;padding:8px 24px;font-size:12px;
+      cursor:pointer;font-family:inherit;font-weight:600;transition:all 0.2s">
+      🔄 โหลดใหม่
+    </button>
+  </div>
+
+</div>
+
+<script>
+// Parse Gist ID from URL parameters, default to Dr. Arm's Gist ID
+const urlParams = new URLSearchParams(window.location.search);
+const gistId = urlParams.get('gist') || '82fd61b97064c5df31452ab4ba448bdd';
+
+const GIST_API = `https://api.github.com/gists/${gistId}`;
+
+let bossText = "";
+
+async function load(){
+  document.getElementById("loading").style.display = "flex";
+  document.getElementById("results").style.display  = "none";
+  document.getElementById("error").style.display    = "none";
+  try{
+    const r = await fetch(GIST_API + "?t=" + Date.now());
+    if(!r.ok) {
+      if(r.status === 404) {
+        throw new Error("ไม่พบ Gist ID ที่ระบุ หรือ Gist อาจถูกตั้งเป็นส่วนตัว");
+      }
+      throw new Error("HTTP " + r.status + " (ดึงข้อมูลล้มเหลว)");
+    }
+    const gistData = await r.json();
+    const file = gistData.files["analysis.json"];
+    if(!file || !file.content) {
+      throw new Error("ไม่พบไฟล์ analysis.json ในข้อมูล Gist");
+    }
+    
+    const d = JSON.parse(file.content);
+    if(!d.boss) throw new Error("ยังไม่มีผลวิเคราะห์ — รอหมออาร์มรันวิเคราะห์รอบล่าสุดก่อนนะครับ 😊");
+
+    document.getElementById("out-ck").textContent   = d.chayakorn || "-";
+    document.getElementById("out-ws").textContent   = d.watsaran  || "-";
+    document.getElementById("out-boss").textContent = d.boss      || "-";
+    bossText = d.boss || "";
+
+    const updated = d.updated ? new Date(d.updated).toLocaleString("th-TH",{
+      day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"
+    }) : "-";
+    
+    const provLabel = d.provider === "claude" ? "Claude" : "Gemini";
+    const slotStr = d.slot ? `  ·  ${d.slot}` : "";
+    document.getElementById("meta").textContent = `📅 ${d.date||"-"} ${slotStr}  ·  อัปเดต ${updated}  ·  ${provLabel}`;
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("results").style.display = "block";
+  }catch(e){
+    document.getElementById("loading").style.display  = "none";
+    document.getElementById("error").style.display    = "block";
+    document.getElementById("error").textContent      = "⚠️ " + e.message;
+  }
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+function copyBoss(){
+  if(!bossText) return;
+  navigator.clipboard.writeText(bossText).then(()=>{
+    const btn = document.getElementById("copy-btn");
+    btn.textContent = "✓ copied";
+    setTimeout(()=>btn.textContent="copy", 2000);
+  });
+}
+
+load();
+// Auto-refresh every 5 minutes
+setInterval(load, 5*60*1000);
+// Refresh when window returns to focus
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
 </script>
 </body>
 </html>
