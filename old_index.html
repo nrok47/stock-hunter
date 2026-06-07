@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Stock Hunter — ผลวิเคราะห์ล่าสุด</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+Thai:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #030712;
+    --card-bg: rgba(17, 24, 39, 0.6);
+    --card-border: rgba(255, 255, 255, 0.05);
+    --primary: #00d4ff;
+    --secondary: #f59e0b;
+    --accent: #ff4d6d;
+    --purple: #a78bfa;
+    --green: #4ade80;
+    --text: #f3f4f6;
+    --text-muted: rgba(255, 255, 255, 0.4);
+    --text-secondary: rgba(255, 255, 255, 0.7);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background: var(--bg);
+    min-height: 100vh;
+    font-family: 'Outfit', 'Noto Sans Thai', sans-serif;
+    color: var(--text);
+    background-image: 
+      radial-gradient(ellipse at 20% 20%, rgba(13, 31, 60, 0.5), transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(26, 10, 31, 0.5), transparent 60%);
+    background-attachment: fixed;
+  }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:4px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.25)}
+  
+  .card{
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+    animation: fadeIn 0.4s ease;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  }
+  
+  .card-boss{
+    background: rgba(255, 77, 109, 0.04);
+    border-color: rgba(255, 77, 109, 0.2);
+    box-shadow: 0 10px 30px rgba(255, 77, 109, 0.05);
+  }
+  .card-ck{
+    background: rgba(0, 212, 255, 0.03);
+    border-color: rgba(0, 212, 255, 0.15);
+  }
+  .card-ws{
+    background: rgba(245, 158, 11, 0.03);
+    border-color: rgba(245, 158, 11, 0.15);
+  }
+  .label{
+    font-size: 11px;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .content{
+    font-size: 14px;
+    line-height: 1.85;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  
+  .spinner{
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(255,255,255,0.1);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  
+  @media(max-width:480px){
+    .wrap{padding:14px 12px!important}
+    .content{font-size:13px}
+    .card{padding:16px 16px!important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap" style="max-width:760px;margin:0 auto;padding:24px 16px">
+
+  <!-- Header -->
+  <div style="text-align:center;margin-bottom:28px">
+    <div style="display:inline-block;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px;padding:3px 12px;font-size:10px;color:rgba(255,255,255,0.4);
+      font-family:'Share Tech Mono',monospace;margin-bottom:8px;letter-spacing:2px">
+      SET · STOCK HUNTER
+    </div>
+    <h1 style="font-size:24px;font-weight:700;color:#fff;margin-bottom:6px">🤖 ผลวิเคราะห์ล่าสุด</h1>
+    <div id="meta" style="font-size:11.5px;color:rgba(255,255,255,0.35);font-family:'Share Tech Mono',monospace;letter-spacing:0.5px"></div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:50px 0">
+    <div class="spinner"></div>
+    <div style="color:var(--text-muted);font-size:13px">กำลังโหลดข้อมูลและถอดรหัสผลวิเคราะห์...</div>
+  </div>
+
+  <!-- Error -->
+  <div id="error" style="display:none;background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.3);
+    border-radius:12px;padding:18px;text-align:center;color:#ff7777;font-size:13.5px;font-family:monospace"></div>
+
+  <!-- Results -->
+  <div id="results" style="display:none">
+    
+    <div class="card card-boss" style="border-width:1.5px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid rgba(255,77,109,0.15);padding-bottom:10px">
+        <div class="label" style="color:#ff4d6d;margin-bottom:0">⚡ AGENT 3 — บอส ฒ · ผู้ฟันธง & จัดการความเสี่ยง</div>
+        <button id="copy-btn" onclick="copyBoss()" style="background:rgba(255,77,109,0.1);
+          border:1px solid rgba(255,77,109,0.3);color:rgba(255,77,109,0.8);border-radius:6px;
+          padding:4px 12px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;transition:all 0.2s">
+          copy
+        </button>
+      </div>
+      <div id="out-boss" class="content"></div>
+    </div>
+
+    <div class="card card-ck">
+      <div class="label" style="color:#00d4ff;border-bottom:1px solid rgba(0, 212, 255, 0.15);padding-bottom:8px">🔍 AGENT 1 — ชยกร · นักคัดกรองหุ้นเทคนิค</div>
+      <div id="out-ck" class="content"></div>
+    </div>
+    
+    <div class="card card-ws">
+      <div class="label" style="color:#f59e0b;border-bottom:1px solid rgba(245, 158, 11, 0.15);padding-bottom:8px">📰 AGENT 2 — วศรัญ · นักวิเคราะห์ประเด็นข่าวและตัวเร่ง</div>
+      <div id="out-ws" class="content"></div>
+    </div>
+
+    <div style="text-align:center;margin-top:10px;padding:10px 14px;
+      background:rgba(255,77,109,0.03);border:1px solid rgba(255,77,109,0.1);
+      border-radius:12px;color:var(--text-muted);font-size:11.5px">
+      ⚠️ การประเมินและวิเคราะห์เบื้องต้นนี้ไม่ใช่คำแนะนำหรือเชิญชวนการลงทุน โปรดศึกษาข้อมูลความเสี่ยงด้วยตัวเอง
+    </div>
+  </div>
+
+  <!-- Refresh -->
+  <div style="text-align:center;margin-top:24px">
+    <button onclick="load()" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);
+      color:rgba(255,255,255,0.4);border-radius:8px;padding:8px 24px;font-size:12px;
+      cursor:pointer;font-family:inherit;font-weight:600;transition:all 0.2s">
+      🔄 โหลดใหม่
+    </button>
+  </div>
+
+</div>
+
+<script>
+// Parse Gist ID from URL parameters, default to Dr. Arm's Gist ID
+const urlParams = new URLSearchParams(window.location.search);
+const gistId = urlParams.get('gist') || '82fd61b97064c5df31452ab4ba448bdd';
+
+const GIST_API = `https://api.github.com/gists/${gistId}`;
+
+let bossText = "";
+
+async function load(){
+  document.getElementById("loading").style.display = "flex";
+  document.getElementById("results").style.display  = "none";
+  document.getElementById("error").style.display    = "none";
+  try{
+    const r = await fetch(GIST_API + "?t=" + Date.now());
+    if(!r.ok) {
+      if(r.status === 404) {
+        throw new Error("ไม่พบ Gist ID ที่ระบุ หรือ Gist อาจถูกตั้งเป็นส่วนตัว");
+      }
+      throw new Error("HTTP " + r.status + " (ดึงข้อมูลล้มเหลว)");
+    }
+    const gistData = await r.json();
+    const file = gistData.files["analysis.json"];
+    if(!file || !file.content) {
+      throw new Error("ไม่พบไฟล์ analysis.json ในข้อมูล Gist");
+    }
+    
+    const d = JSON.parse(file.content);
+    if(!d.boss) throw new Error("ยังไม่มีผลวิเคราะห์ — รอหมออาร์มรันวิเคราะห์รอบล่าสุดก่อนนะครับ 😊");
+
+    document.getElementById("out-ck").textContent   = d.chayakorn || "-";
+    document.getElementById("out-ws").textContent   = d.watsaran  || "-";
+    document.getElementById("out-boss").textContent = d.boss      || "-";
+    bossText = d.boss || "";
+
+    const updated = d.updated ? new Date(d.updated).toLocaleString("th-TH",{
+      day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"
+    }) : "-";
+    
+    const provLabel = d.provider === "claude" ? "Claude" : "Gemini";
+    const slotStr = d.slot ? `  ·  ${d.slot}` : "";
+    document.getElementById("meta").textContent = `📅 ${d.date||"-"} ${slotStr}  ·  อัปเดต ${updated}  ·  ${provLabel}`;
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("results").style.display = "block";
+  }catch(e){
+    document.getElementById("loading").style.display  = "none";
+    document.getElementById("error").style.display    = "block";
+    document.getElementById("error").textContent      = "⚠️ " + e.message;
+  }
+}
+
+function copyBoss(){
+  if(!bossText) return;
+  navigator.clipboard.writeText(bossText).then(()=>{
+    const btn = document.getElementById("copy-btn");
+    btn.textContent = "✓ copied";
+    setTimeout(()=>btn.textContent="copy", 2000);
+  });
+}
+
+load();
+// Auto-refresh every 5 minutes
+setInterval(load, 5*60*1000);
+// Refresh when window returns to focus
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
+</script>
+</body>
+</html>

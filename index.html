@@ -6,228 +6,253 @@
 <title>Stock Hunter — ผลวิเคราะห์ล่าสุด</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+Thai:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 <style>
-  :root {
-    --bg: #030712;
-    --card-bg: rgba(17, 24, 39, 0.6);
-    --card-border: rgba(255, 255, 255, 0.05);
-    --primary: #00d4ff;
-    --secondary: #f59e0b;
-    --accent: #ff4d6d;
-    --purple: #a78bfa;
-    --green: #4ade80;
-    --text: #f3f4f6;
-    --text-muted: rgba(255, 255, 255, 0.4);
-    --text-secondary: rgba(255, 255, 255, 0.7);
-  }
-
   *{box-sizing:border-box;margin:0;padding:0}
   body{
-    background: var(--bg);
-    min-height: 100vh;
-    font-family: 'Outfit', 'Noto Sans Thai', sans-serif;
-    color: var(--text);
-    background-image: 
-      radial-gradient(ellipse at 20% 20%, rgba(13, 31, 60, 0.5), transparent 60%),
-      radial-gradient(ellipse at 80% 80%, rgba(26, 10, 31, 0.5), transparent 60%);
-    background-attachment: fixed;
+    background:#030712;color:#f3f4f6;min-height:100vh;
+    font-family:'Outfit','Noto Sans Thai',sans-serif;
+    background-image:
+      radial-gradient(ellipse at 10% 10%,rgba(29,78,216,.15),transparent 50%),
+      radial-gradient(ellipse at 90% 90%,rgba(112,26,117,.15),transparent 50%);
+    background-attachment:fixed;
   }
-  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
   @keyframes spin{to{transform:rotate(360deg)}}
-  
-  ::-webkit-scrollbar{width:6px}
-  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:4px}
-  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.25)}
-  
+  ::-webkit-scrollbar{width:5px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
   .card{
-    background: var(--card-bg);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--card-border);
-    border-radius: 16px;
-    padding: 20px 22px;
-    margin-bottom: 16px;
-    animation: fadeIn 0.4s ease;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    background:rgba(17,24,39,.6);backdrop-filter:blur(16px);
+    border:1px solid rgba(255,255,255,.05);border-radius:16px;
+    padding:20px;margin-bottom:16px;animation:fadeIn .4s ease;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);
   }
-  
-  .card-boss{
-    background: rgba(255, 77, 109, 0.04);
-    border-color: rgba(255, 77, 109, 0.2);
-    box-shadow: 0 10px 30px rgba(255, 77, 109, 0.05);
+  .spinner{
+    width:36px;height:36px;border:3px solid rgba(255,255,255,.1);
+    border-top-color:#00d4ff;border-radius:50%;animation:spin .8s linear infinite;
   }
-  .card-ck{
-    background: rgba(0, 212, 255, 0.03);
-    border-color: rgba(0, 212, 255, 0.15);
-  }
-  .card-ws{
-    background: rgba(245, 158, 11, 0.03);
-    border-color: rgba(245, 158, 11, 0.15);
-  }
-  .label{
-    font-size: 11px;
-    font-family: 'Share Tech Mono', monospace;
-    letter-spacing: 1.5px;
-    margin-bottom: 12px;
-    font-weight: 600;
+  .agent-label{
+    font-size:11px;font-family:'Share Tech Mono',monospace;
+    letter-spacing:1.5px;font-weight:600;margin-bottom:10px;
+    padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06);
   }
   .content{
-    font-size: 14px;
-    line-height: 1.85;
-    color: rgba(255, 255, 255, 0.9);
-    white-space: pre-wrap;
-    max-height: 400px;
-    overflow-y: auto;
-    padding-right: 8px;
+    font-size:13.5px;line-height:1.85;color:rgba(255,255,255,.9);
+    white-space:pre-wrap;max-height:450px;overflow-y:auto;padding-right:6px;
   }
-  
-  .spinner{
-    width: 36px;
-    height: 36px;
-    border: 3px solid rgba(255,255,255,0.1);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+  .btn{
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+    color:#f3f4f6;border-radius:8px;padding:7px 16px;font-size:12px;
+    cursor:pointer;font-family:inherit;font-weight:600;transition:all .2s;
   }
-  
+  .btn:hover{filter:brightness(1.2)}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-family:monospace;font-weight:700}
+  .pill-am{background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.25)}
+  .pill-pm{background:rgba(139,92,246,.12);color:#a78bfa;border:1px solid rgba(139,92,246,.25)}
+  .history-item{
+    padding:10px 14px;border-radius:10px;margin-bottom:8px;cursor:pointer;
+    border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);
+    transition:all .2s;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  .history-item:hover{background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.2)}
+  .history-item.active{background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.3)}
+  select{
+    background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);
+    color:#f3f4f6;border-radius:8px;padding:6px 12px;font-size:12px;
+    font-family:inherit;outline:none;cursor:pointer;
+  }
   @media(max-width:480px){
     .wrap{padding:14px 12px!important}
     .content{font-size:13px}
-    .card{padding:16px 16px!important}
   }
 </style>
 </head>
 <body>
-<div class="wrap" style="max-width:760px;margin:0 auto;padding:24px 16px">
+<div class="wrap" style="max-width:800px;margin:0 auto;padding:24px 16px">
 
   <!-- Header -->
-  <div style="text-align:center;margin-bottom:28px">
-    <div style="display:inline-block;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
-      border-radius:8px;padding:3px 12px;font-size:10px;color:rgba(255,255,255,0.4);
-      font-family:'Share Tech Mono',monospace;margin-bottom:8px;letter-spacing:2px">
-      SET · STOCK HUNTER
+  <div class="card" style="background:rgba(10,25,47,.7);border-color:rgba(0,212,255,.15);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="display:inline-block;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);border-radius:8px;padding:3px 10px;font-size:10px;color:#00d4ff;font-family:'Share Tech Mono',monospace;letter-spacing:1.5px;margin-bottom:6px">
+        STOCK HUNTER — ผลวิเคราะห์
+      </div>
+      <h1 style="font-size:20px;font-weight:700">🤖 3-Agent Stock Hunter</h1>
     </div>
-    <h1 style="font-size:24px;font-weight:700;color:#fff;margin-bottom:6px">🤖 ผลวิเคราะห์ล่าสุด</h1>
-    <div id="meta" style="font-size:11.5px;color:rgba(255,255,255,0.35);font-family:'Share Tech Mono',monospace;letter-spacing:0.5px"></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <select id="limitSelect" onchange="load()" style="">
+        <option value="10">10 รอบล่าสุด</option>
+        <option value="20">20 รอบล่าสุด</option>
+        <option value="30" selected>30 รอบล่าสุด</option>
+      </select>
+      <button class="btn" onclick="load()">🔄 รีโหลด</button>
+    </div>
   </div>
 
   <!-- Loading -->
-  <div id="loading" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:50px 0">
+  <div id="loading" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:60px 0">
     <div class="spinner"></div>
-    <div style="color:var(--text-muted);font-size:13px">กำลังโหลดข้อมูลและถอดรหัสผลวิเคราะห์...</div>
+    <div style="color:rgba(255,255,255,.4);font-size:13px">กำลังโหลดข้อมูลจาก Firebase...</div>
   </div>
 
   <!-- Error -->
-  <div id="error" style="display:none;background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.3);
-    border-radius:12px;padding:18px;text-align:center;color:#ff7777;font-size:13.5px;font-family:monospace"></div>
+  <div id="error" style="display:none;background:rgba(255,77,77,.08);border:1px solid rgba(255,77,77,.3);border-radius:12px;padding:16px;color:#ff7777;font-size:13px"></div>
 
-  <!-- Results -->
-  <div id="results" style="display:none">
-    
-    <div class="card card-boss" style="border-width:1.5px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid rgba(255,77,109,0.15);padding-bottom:10px">
-        <div class="label" style="color:#ff4d6d;margin-bottom:0">⚡ AGENT 3 — บอส ฒ · ผู้ฟันธง & จัดการความเสี่ยง</div>
-        <button id="copy-btn" onclick="copyBoss()" style="background:rgba(255,77,109,0.1);
-          border:1px solid rgba(255,77,109,0.3);color:rgba(255,77,109,0.8);border-radius:6px;
-          padding:4px 12px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;transition:all 0.2s">
-          copy
-        </button>
+  <!-- Main content -->
+  <div id="main" style="display:none">
+
+    <!-- History selector -->
+    <div class="card" style="padding:14px 16px">
+      <div style="font-size:11px;color:rgba(255,255,255,.4);font-family:monospace;margin-bottom:10px;letter-spacing:1px">📋 รายการวิเคราะห์</div>
+      <div id="historyList"></div>
+    </div>
+
+    <!-- Selected result -->
+    <div id="resultPanel">
+      <!-- Meta -->
+      <div id="metaBar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:rgba(255,255,255,.5);font-family:monospace"></div>
+
+      <!-- Boss A3 -->
+      <div class="card" style="background:rgba(255,77,109,.04);border-color:rgba(255,77,109,.2)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="agent-label" style="color:#ff4d6d;margin-bottom:0;border:none;padding:0">⚡ Agent 3 — บอส ฒ · ผู้ฟันธง & ความเสี่ยง</div>
+          <button id="copyBtn" class="btn" onclick="copyBoss()" style="font-size:11px;padding:4px 12px">📋 copy</button>
+        </div>
+        <div style="height:1px;background:rgba(255,77,109,.15);margin:10px 0"></div>
+        <div id="outBoss" class="content"></div>
       </div>
-      <div id="out-boss" class="content"></div>
+
+      <!-- A1 + A2 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="card" style="background:rgba(0,212,255,.03);border-color:rgba(0,212,255,.15)">
+          <div class="agent-label" style="color:#00d4ff">🔍 Agent 1 — ชยกร · TA Screening</div>
+          <div id="outCK" class="content" style="max-height:300px"></div>
+        </div>
+        <div class="card" style="background:rgba(245,158,11,.03);border-color:rgba(245,158,11,.15)">
+          <div class="agent-label" style="color:#f59e0b">📰 Agent 2 — วศรัญ · Catalyst & News</div>
+          <div id="outWS" class="content" style="max-height:300px"></div>
+        </div>
+      </div>
+
+      <div style="text-align:center;font-size:11px;color:rgba(255,255,255,.2);padding:8px">
+        ⚠️ เพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน
+      </div>
     </div>
 
-    <div class="card card-ck">
-      <div class="label" style="color:#00d4ff;border-bottom:1px solid rgba(0, 212, 255, 0.15);padding-bottom:8px">🔍 AGENT 1 — ชยกร · นักคัดกรองหุ้นเทคนิค</div>
-      <div id="out-ck" class="content"></div>
-    </div>
-    
-    <div class="card card-ws">
-      <div class="label" style="color:#f59e0b;border-bottom:1px solid rgba(245, 158, 11, 0.15);padding-bottom:8px">📰 AGENT 2 — วศรัญ · นักวิเคราะห์ประเด็นข่าวและตัวเร่ง</div>
-      <div id="out-ws" class="content"></div>
-    </div>
-
-    <div style="text-align:center;margin-top:10px;padding:10px 14px;
-      background:rgba(255,77,109,0.03);border:1px solid rgba(255,77,109,0.1);
-      border-radius:12px;color:var(--text-muted);font-size:11.5px">
-      ⚠️ การประเมินและวิเคราะห์เบื้องต้นนี้ไม่ใช่คำแนะนำหรือเชิญชวนการลงทุน โปรดศึกษาข้อมูลความเสี่ยงด้วยตัวเอง
-    </div>
-  </div>
-
-  <!-- Refresh -->
-  <div style="text-align:center;margin-top:24px">
-    <button onclick="load()" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);
-      color:rgba(255,255,255,0.4);border-radius:8px;padding:8px 24px;font-size:12px;
-      cursor:pointer;font-family:inherit;font-weight:600;transition:all 0.2s">
-      🔄 โหลดใหม่
-    </button>
   </div>
 
 </div>
 
 <script>
-// Parse Gist ID from URL parameters, default to Dr. Arm's Gist ID
-const urlParams = new URLSearchParams(window.location.search);
-const gistId = urlParams.get('gist') || '82fd61b97064c5df31452ab4ba448bdd';
+  // ══ CONFIG ══
+  const FB_URL = "https://stockhunter-5da7e-default-rtdb.asia-southeast1.firebasedatabase.app";
 
-const GIST_API = `https://api.github.com/gists/${gistId}`;
+  let allHistory = [];
+  let currentEntry = null;
 
-let bossText = "";
-
-async function load(){
-  document.getElementById("loading").style.display = "flex";
-  document.getElementById("results").style.display  = "none";
-  document.getElementById("error").style.display    = "none";
-  try{
-    const r = await fetch(GIST_API + "?t=" + Date.now());
-    if(!r.ok) {
-      if(r.status === 404) {
-        throw new Error("ไม่พบ Gist ID ที่ระบุ หรือ Gist อาจถูกตั้งเป็นส่วนตัว");
-      }
-      throw new Error("HTTP " + r.status + " (ดึงข้อมูลล้มเหลว)");
-    }
-    const gistData = await r.json();
-    const file = gistData.files["analysis.json"];
-    if(!file || !file.content) {
-      throw new Error("ไม่พบไฟล์ analysis.json ในข้อมูล Gist");
-    }
-    
-    const d = JSON.parse(file.content);
-    if(!d.boss) throw new Error("ยังไม่มีผลวิเคราะห์ — รอหมออาร์มรันวิเคราะห์รอบล่าสุดก่อนนะครับ 😊");
-
-    document.getElementById("out-ck").textContent   = d.chayakorn || "-";
-    document.getElementById("out-ws").textContent   = d.watsaran  || "-";
-    document.getElementById("out-boss").textContent = d.boss      || "-";
-    bossText = d.boss || "";
-
-    const updated = d.updated ? new Date(d.updated).toLocaleString("th-TH",{
-      day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"
-    }) : "-";
-    
-    const provLabel = d.provider === "claude" ? "Claude" : "Gemini";
-    const slotStr = d.slot ? `  ·  ${d.slot}` : "";
-    document.getElementById("meta").textContent = `📅 ${d.date||"-"} ${slotStr}  ·  อัปเดต ${updated}  ·  ${provLabel}`;
-
-    document.getElementById("loading").style.display = "none";
-    document.getElementById("results").style.display = "block";
-  }catch(e){
-    document.getElementById("loading").style.display  = "none";
-    document.getElementById("error").style.display    = "block";
-    document.getElementById("error").textContent      = "⚠️ " + e.message;
+  function uColor(name = "") {
+    const p = ["#00d4ff","#a855f7","#f59e0b","#4ade80","#f87171","#fb923c"];
+    let h = 0;
+    for (const c of name) h = (h * 31 + c.charCodeAt(0)) % p.length;
+    return p[h];
   }
-}
 
-function copyBoss(){
-  if(!bossText) return;
-  navigator.clipboard.writeText(bossText).then(()=>{
-    const btn = document.getElementById("copy-btn");
-    btn.textContent = "✓ copied";
-    setTimeout(()=>btn.textContent="copy", 2000);
-  });
-}
+  function slotPill(slot) {
+    if (!slot) return "";
+    const am = slot.includes("เช้า");
+    return `<span class="pill ${am ? "pill-am" : "pill-pm"}">${am ? "🌅 เช้า" : "🌆 เย็น"}</span>`;
+  }
 
-load();
-// Auto-refresh every 5 minutes
-setInterval(load, 5*60*1000);
-// Refresh when window returns to focus
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
+  function userBadge(name) {
+    if (!name) return "";
+    const c = uColor(name);
+    return `<span style="background:${c}18;border:1px solid ${c}40;border-radius:4px;padding:1px 8px;font-size:10px;font-weight:700;color:${c}">${name}</span>`;
+  }
+
+  function extractTop3(text = "") {
+    const m = [...text.matchAll(/##\s*[🥇🥈🥉].*?([A-Z]{2,8})/g)].map(m => m[1]);
+    if (m.length) return [...new Set(m)].slice(0, 3);
+    return [...new Set([...text.matchAll(/([A-Z]{2,8})\s*@/g)].map(m => m[1]))].slice(0, 3);
+  }
+
+  async function load() {
+    const limit = document.getElementById("limitSelect").value;
+    document.getElementById("loading").style.display = "flex";
+    document.getElementById("main").style.display = "none";
+    document.getElementById("error").style.display = "none";
+
+    try {
+      const r = await fetch(`${FB_URL}/history.json?orderBy="$key"&limitToLast=${limit}&t=${Date.now()}`);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const data = await r.json();
+      if (!data || typeof data !== "object") throw new Error("ยังไม่มีประวัติการวิเคราะห์ใน Firebase");
+
+      allHistory = Object.values(data).sort((a, b) => b.ts - a.ts);
+      renderHistoryList();
+      if (allHistory.length > 0) showEntry(allHistory[0]);
+
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("main").style.display = "block";
+    } catch (e) {
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("error").style.display = "block";
+      document.getElementById("error").textContent = "⚠️ " + e.message;
+    }
+  }
+
+  function renderHistoryList() {
+    const list = document.getElementById("historyList");
+    list.innerHTML = allHistory.map((h, i) => {
+      const top3 = extractTop3(h.output?.boss || "");
+      const time = new Date(h.ts).toLocaleTimeString("th-TH", {hour:"2-digit", minute:"2-digit"});
+      return `
+        <div class="history-item ${i === 0 ? "active" : ""}" onclick="selectEntry(${i})" id="hi-${i}">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            ${slotPill(h.slot)}
+            <span style="color:#00d4ff;font-size:12px;font-family:monospace">📅 ${h.dateStr}</span>
+            <span style="font-size:10px;color:rgba(255,255,255,.3);font-family:monospace">${time}</span>
+            ${h.user ? userBadge(h.user) : ""}
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            ${top3.map(s => `<span style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700">${s}</span>`).join("")}
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  function selectEntry(i) {
+    document.querySelectorAll(".history-item").forEach((el, j) => {
+      el.classList.toggle("active", j === i);
+    });
+    showEntry(allHistory[i]);
+  }
+
+  function showEntry(h) {
+    currentEntry = h;
+    document.getElementById("outBoss").textContent = h.output?.boss || "-";
+    document.getElementById("outCK").textContent   = h.output?.chayakorn || "-";
+    document.getElementById("outWS").textContent   = h.output?.watsaran || "-";
+
+    const time = new Date(h.ts).toLocaleString("th-TH", {day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"});
+    document.getElementById("metaBar").innerHTML = `
+      ${slotPill(h.slot)}
+      <span>📅 ${h.dateStr}</span>
+      <span>⏰ ${time}</span>
+      ${h.user ? userBadge(h.user) : ""}
+    `;
+  }
+
+  function copyBoss() {
+    if (!currentEntry?.output?.boss) return;
+    navigator.clipboard.writeText(currentEntry.output.boss).then(() => {
+      const btn = document.getElementById("copyBtn");
+      btn.textContent = "✓ copied";
+      setTimeout(() => btn.textContent = "📋 copy", 2000);
+    });
+  }
+
+  // Auto-refresh ทุก 5 นาที
+  setInterval(load, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+
+  load();
 </script>
 </body>
 </html>
