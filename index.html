@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Stock Hunter — ผลวิเคราะห์ล่าสุด</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+Thai:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<title>Stock Hunter — 3-Agent AI วิเคราะห์หุ้น SET</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet"/>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -13,265 +13,85 @@
     background-image:
       radial-gradient(ellipse at 10% 10%,rgba(29,78,216,.15),transparent 50%),
       radial-gradient(ellipse at 90% 90%,rgba(112,26,117,.15),transparent 50%);
-    background-attachment:fixed;
+    display:flex;flex-direction:column;
   }
-  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  ::-webkit-scrollbar{width:5px}
-  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
-  .card{
-    background:rgba(17,24,39,.6);backdrop-filter:blur(16px);
-    border:1px solid rgba(255,255,255,.05);border-radius:16px;
-    padding:20px;margin-bottom:16px;animation:fadeIn .4s ease;
-    box-shadow:0 10px 30px rgba(0,0,0,.4);
+  header{
+    padding:14px 20px;
+    background:rgba(10,25,47,.8);backdrop-filter:blur(12px);
+    border-bottom:1px solid rgba(0,212,255,.15);
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
   }
-  .spinner{
-    width:36px;height:36px;border:3px solid rgba(255,255,255,.1);
-    border-top-color:#00d4ff;border-radius:50%;animation:spin .8s linear infinite;
+  .logo-tag{
+    display:inline-block;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);
+    border-radius:6px;padding:2px 8px;font-size:9px;color:#00d4ff;
+    letter-spacing:1.5px;margin-bottom:4px;font-family:monospace;
   }
-  .agent-label{
-    font-size:11px;font-family:'Share Tech Mono',monospace;
-    letter-spacing:1.5px;font-weight:600;margin-bottom:10px;
-    padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06);
+  h1{font-size:17px;font-weight:700}
+  .badge{
+    display:flex;align-items:center;gap:6px;font-size:11px;
+    color:rgba(255,255,255,.4);font-family:monospace;
   }
-  .content{
-    font-size:13.5px;line-height:1.85;color:rgba(255,255,255,.9);
-    white-space:pre-wrap;max-height:450px;overflow-y:auto;padding-right:6px;
+  .dot{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px #4ade80;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  iframe{
+    flex:1;width:100%;border:none;
+    min-height:calc(100vh - 60px);
   }
-  .btn{
-    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
-    color:#f3f4f6;border-radius:8px;padding:7px 16px;font-size:12px;
-    cursor:pointer;font-family:inherit;font-weight:600;transition:all .2s;
+  .no-url{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:16px;padding:40px 20px;text-align:center;
   }
-  .btn:hover{filter:brightness(1.2)}
-  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-family:monospace;font-weight:700}
-  .pill-am{background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.25)}
-  .pill-pm{background:rgba(139,92,246,.12);color:#a78bfa;border:1px solid rgba(139,92,246,.25)}
-  .history-item{
-    padding:10px 14px;border-radius:10px;margin-bottom:8px;cursor:pointer;
-    border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);
-    transition:all .2s;display:flex;align-items:center;justify-content:space-between;gap:10px;
-  }
-  .history-item:hover{background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.2)}
-  .history-item.active{background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.3)}
-  select{
-    background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);
-    color:#f3f4f6;border-radius:8px;padding:6px 12px;font-size:12px;
-    font-family:inherit;outline:none;cursor:pointer;
-  }
-  @media(max-width:480px){
-    .wrap{padding:14px 12px!important}
-    .content{font-size:13px}
+  .no-url h2{font-size:18px;color:rgba(255,255,255,.6)}
+  .no-url p{font-size:13px;color:rgba(255,255,255,.35);line-height:1.8;max-width:400px}
+  code{
+    background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);
+    border-radius:6px;padding:2px 8px;font-size:12px;color:#00d4ff;font-family:monospace;
   }
 </style>
 </head>
 <body>
-<div class="wrap" style="max-width:800px;margin:0 auto;padding:24px 16px">
 
-  <!-- Header -->
-  <div class="card" style="background:rgba(10,25,47,.7);border-color:rgba(0,212,255,.15);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-    <div>
-      <div style="display:inline-block;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);border-radius:8px;padding:3px 10px;font-size:10px;color:#00d4ff;font-family:'Share Tech Mono',monospace;letter-spacing:1.5px;margin-bottom:6px">
-        STOCK HUNTER — ผลวิเคราะห์
-      </div>
-      <h1 style="font-size:20px;font-weight:700">🤖 3-Agent Stock Hunter</h1>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <select id="limitSelect" onchange="load()" style="">
-        <option value="10">10 รอบล่าสุด</option>
-        <option value="20">20 รอบล่าสุด</option>
-        <option value="30" selected>30 รอบล่าสุด</option>
-      </select>
-      <button class="btn" onclick="load()">🔄 รีโหลด</button>
-    </div>
+<header>
+  <div>
+    <div class="logo-tag">SET · STOCK HUNTER v1.0</div>
+    <h1>🤖 3-Agent Stock Hunter</h1>
   </div>
-
-  <!-- Loading -->
-  <div id="loading" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:60px 0">
-    <div class="spinner"></div>
-    <div style="color:rgba(255,255,255,.4);font-size:13px">กำลังโหลดข้อมูลจาก Firebase...</div>
+  <div class="badge">
+    <div class="dot"></div>
+    <span>Powered by Claude AI</span>
   </div>
+</header>
 
-  <!-- Error -->
-  <div id="error" style="display:none;background:rgba(255,77,77,.08);border:1px solid rgba(255,77,77,.3);border-radius:12px;padding:16px;color:#ff7777;font-size:13px"></div>
-
-  <!-- Main content -->
-  <div id="main" style="display:none">
-
-    <!-- History selector -->
-    <div class="card" style="padding:14px 16px">
-      <div style="font-size:11px;color:rgba(255,255,255,.4);font-family:monospace;margin-bottom:10px;letter-spacing:1px">📋 รายการวิเคราะห์</div>
-      <div id="historyList"></div>
-    </div>
-
-    <!-- Selected result -->
-    <div id="resultPanel">
-      <!-- Meta -->
-      <div id="metaBar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:rgba(255,255,255,.5);font-family:monospace"></div>
-
-      <!-- Boss A3 -->
-      <div class="card" style="background:rgba(255,77,109,.04);border-color:rgba(255,77,109,.2)">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="agent-label" style="color:#ff4d6d;margin-bottom:0;border:none;padding:0">⚡ Agent 3 — บอส ฒ · ผู้ฟันธง & ความเสี่ยง</div>
-          <button id="copyBtn" class="btn" onclick="copyBoss()" style="font-size:11px;padding:4px 12px">📋 copy</button>
-        </div>
-        <div style="height:1px;background:rgba(255,77,109,.15);margin:10px 0"></div>
-        <div id="outBoss" class="content"></div>
-      </div>
-
-      <!-- A1 + A2 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="card" style="background:rgba(0,212,255,.03);border-color:rgba(0,212,255,.15)">
-          <div class="agent-label" style="color:#00d4ff">🔍 Agent 1 — ชยกร · TA Screening</div>
-          <div id="outCK" class="content" style="max-height:300px"></div>
-        </div>
-        <div class="card" style="background:rgba(245,158,11,.03);border-color:rgba(245,158,11,.15)">
-          <div class="agent-label" style="color:#f59e0b">📰 Agent 2 — วศรัญ · Catalyst & News</div>
-          <div id="outWS" class="content" style="max-height:300px"></div>
-        </div>
-      </div>
-
-      <div style="text-align:center;font-size:11px;color:rgba(255,255,255,.2);padding:8px">
-        ⚠️ เพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำการลงทุน
-      </div>
-    </div>
-
-  </div>
-
-</div>
-
+<!-- 
+  ══════════════════════════════════════════════
+  วิธีใช้: แทนที่ YOUR_ARTIFACT_URL ด้านล่าง
+  ด้วย URL ที่ได้จากการ Publish Artifact ใน Claude
+  ตัวอย่าง: https://claude.site/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  ══════════════════════════════════════════════
+-->
 <script>
-  // ══ CONFIG ══
-  const FB_URL = "https://stockhunter-5da7e-default-rtdb.asia-southeast1.firebasedatabase.app";
+  const ARTIFACT_URL = "https://claude.ai/public/artifacts/d0ce3338-f84a-4c3c-bbe7-237f91a6244a";
 
-  let allHistory = [];
-  let currentEntry = null;
-
-  function uColor(name = "") {
-    const p = ["#00d4ff","#a855f7","#f59e0b","#4ade80","#f87171","#fb923c"];
-    let h = 0;
-    for (const c of name) h = (h * 31 + c.charCodeAt(0)) % p.length;
-    return p[h];
+  if (!ARTIFACT_URL || ARTIFACT_URL === "https://claude.ai/public/artifacts/d0ce3338-f84a-4c3c-bbe7-237f91a6244a") {
+    document.body.innerHTML += `
+      <div class="no-url">
+        <div style="font-size:48px">🔧</div>
+        <h2>ยังไม่ได้ตั้งค่า Artifact URL</h2>
+        <p>
+          ให้ไปที่ Claude Artifact แล้วกด <strong>Share → Publish</strong><br/>
+          copy URL ที่ได้ แล้วแก้ไขในไฟล์ <code>index.html</code><br/>
+          บรรทัด <code>const ARTIFACT_URL = "..."</code>
+        </p>
+      </div>`;
+  } else {
+    const iframe = document.createElement("iframe");
+    iframe.src = ARTIFACT_URL;
+    iframe.title = "3-Agent Stock Hunter";
+    iframe.allow = "clipboard-write; clipboard-read";
+    iframe.allowFullscreen = true;
+    document.body.appendChild(iframe);
   }
-
-  function slotPill(slot) {
-    if (!slot) return "";
-    const am = slot.includes("เช้า");
-    return `<span class="pill ${am ? "pill-am" : "pill-pm"}">${am ? "🌅 เช้า" : "🌆 เย็น"}</span>`;
-  }
-
-  function userBadge(name) {
-    if (!name) return "";
-    const c = uColor(name);
-    return `<span style="background:${c}18;border:1px solid ${c}40;border-radius:4px;padding:1px 8px;font-size:10px;font-weight:700;color:${c}">${name}</span>`;
-  }
-
-  function extractTop3(text = "") {
-    const m = [...text.matchAll(/##\s*[🥇🥈🥉].*?([A-Z]{2,8})/g)].map(m => m[1]);
-    if (m.length) return [...new Set(m)].slice(0, 3);
-    return [...new Set([...text.matchAll(/([A-Z]{2,8})\s*@/g)].map(m => m[1]))].slice(0, 3);
-  }
-
-  async function load() {
-    const limit = parseInt(document.getElementById("limitSelect").value);
-    document.getElementById("loading").style.display = "flex";
-    document.getElementById("main").style.display = "none";
-    document.getElementById("error").style.display = "none";
-
-    try {
-      // ── Debug: ลองดึง root ก่อน
-      const rootR = await fetch(`${FB_URL}/.json?shallow=true&t=${Date.now()}`);
-      const rootData = await rootR.json();
-      console.log("Firebase root:", rootData);
-
-      const r = await fetch(`${FB_URL}/history.json?t=${Date.now()}`);
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const data = await r.json();
-      console.log("Firebase /history:", data);
-
-      if (!data) {
-        // แสดง root structure ช่วย debug
-        const rootInfo = rootData ? `โครงสร้าง Firebase root: ${JSON.stringify(rootData)}` : "ไม่สามารถเชื่อมต่อ Firebase ได้";
-        throw new Error(`Firebase /history = null\n${rootInfo}\n\nตรวจสอบ:\n1. Rules ใน Firebase Console ยังอนุญาต read ไหม\n2. มีการรันวิเคราะห์ผ่าน Artifact แล้วหรือยัง`);
-      }
-      if (data.error) throw new Error("Firebase: " + data.error);
-      if (typeof data !== "object") throw new Error("รูปแบบข้อมูลไม่ถูกต้อง");
-
-      allHistory = Object.values(data)
-        .filter(h => h && h.ts)
-        .sort((a, b) => b.ts - a.ts)
-        .slice(0, limit);
-
-      if (allHistory.length === 0) throw new Error("ยังไม่มีประวัติการวิเคราะห์ — กดรัน Artifact ก่อนนะครับ");
-
-      renderHistoryList();
-      if (allHistory.length > 0) showEntry(allHistory[0]);
-
-      document.getElementById("loading").style.display = "none";
-      document.getElementById("main").style.display = "block";
-    } catch (e) {
-      document.getElementById("loading").style.display = "none";
-      document.getElementById("error").style.display = "block";
-      document.getElementById("error").textContent = "⚠️ " + e.message;
-    }
-  }
-
-  function renderHistoryList() {
-    const list = document.getElementById("historyList");
-    list.innerHTML = allHistory.map((h, i) => {
-      const top3 = extractTop3(h.output?.boss || "");
-      const time = new Date(h.ts).toLocaleTimeString("th-TH", {hour:"2-digit", minute:"2-digit"});
-      return `
-        <div class="history-item ${i === 0 ? "active" : ""}" onclick="selectEntry(${i})" id="hi-${i}">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            ${slotPill(h.slot)}
-            <span style="color:#00d4ff;font-size:12px;font-family:monospace">📅 ${h.dateStr}</span>
-            <span style="font-size:10px;color:rgba(255,255,255,.3);font-family:monospace">${time}</span>
-            ${h.user ? userBadge(h.user) : ""}
-          </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">
-            ${top3.map(s => `<span style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700">${s}</span>`).join("")}
-          </div>
-        </div>`;
-    }).join("");
-  }
-
-  function selectEntry(i) {
-    document.querySelectorAll(".history-item").forEach((el, j) => {
-      el.classList.toggle("active", j === i);
-    });
-    showEntry(allHistory[i]);
-  }
-
-  function showEntry(h) {
-    currentEntry = h;
-    document.getElementById("outBoss").textContent = h.output?.boss || "-";
-    document.getElementById("outCK").textContent   = h.output?.chayakorn || "-";
-    document.getElementById("outWS").textContent   = h.output?.watsaran || "-";
-
-    const time = new Date(h.ts).toLocaleString("th-TH", {day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"});
-    document.getElementById("metaBar").innerHTML = `
-      ${slotPill(h.slot)}
-      <span>📅 ${h.dateStr}</span>
-      <span>⏰ ${time}</span>
-      ${h.user ? userBadge(h.user) : ""}
-    `;
-  }
-
-  function copyBoss() {
-    if (!currentEntry?.output?.boss) return;
-    navigator.clipboard.writeText(currentEntry.output.boss).then(() => {
-      const btn = document.getElementById("copyBtn");
-      btn.textContent = "✓ copied";
-      setTimeout(() => btn.textContent = "📋 copy", 2000);
-    });
-  }
-
-  // Auto-refresh ทุก 5 นาที
-  setInterval(load, 5 * 60 * 1000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
-
-  load();
 </script>
+
 </body>
 </html>
