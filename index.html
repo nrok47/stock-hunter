@@ -173,18 +173,28 @@
   }
 
   async function load() {
-    const limit = document.getElementById("limitSelect").value;
+    const limit = parseInt(document.getElementById("limitSelect").value);
     document.getElementById("loading").style.display = "flex";
     document.getElementById("main").style.display = "none";
     document.getElementById("error").style.display = "none";
 
     try {
-      const r = await fetch(`${FB_URL}/history.json?orderBy="$key"&limitToLast=${limit}&t=${Date.now()}`);
+      const r = await fetch(`${FB_URL}/history.json?t=${Date.now()}`);
       if (!r.ok) throw new Error("HTTP " + r.status);
       const data = await r.json();
-      if (!data || typeof data !== "object") throw new Error("ยังไม่มีประวัติการวิเคราะห์ใน Firebase");
 
-      allHistory = Object.values(data).sort((a, b) => b.ts - a.ts);
+      // Firebase อาจ return null หรือ error object
+      if (!data) throw new Error("ยังไม่มีประวัติการวิเคราะห์ใน Firebase");
+      if (data.error) throw new Error("Firebase: " + data.error);
+      if (typeof data !== "object") throw new Error("รูปแบบข้อมูลไม่ถูกต้อง");
+
+      allHistory = Object.values(data)
+        .filter(h => h && h.ts)
+        .sort((a, b) => b.ts - a.ts)
+        .slice(0, limit);
+
+      if (allHistory.length === 0) throw new Error("ยังไม่มีประวัติการวิเคราะห์ — กดรัน Artifact ก่อนนะครับ");
+
       renderHistoryList();
       if (allHistory.length > 0) showEntry(allHistory[0]);
 
