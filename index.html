@@ -70,27 +70,15 @@
   ══════════════════════════════════════════════
 -->
 <script>
-  const ARTIFACT_URL = "https://claude.ai/public/artifacts/d0ce3338-f84a-4c3c-bbe7-237f91a6244a";
+  // ใส่ URL Artifact ที่นี่
+  const ARTIFACT_URL = "https://claude.ai/public/artifacts/9cb64a1a-2d77-4030-9981-38b1e12d1514";
 
-  if (!ARTIFACT_URL || ARTIFACT_URL === "https://claude.ai/public/artifacts/d0ce3338-f84a-4c3c-bbe7-237f91a6244a") {
-    document.body.innerHTML += `
-      <div class="no-url">
-        <div style="font-size:48px">🔧</div>
-        <h2>ยังไม่ได้ตั้งค่า Artifact URL</h2>
-        <p>
-          ให้ไปที่ Claude Artifact แล้วกด <strong>Share → Publish</strong><br/>
-          copy URL ที่ได้ แล้วแก้ไขในไฟล์ <code>index.html</code><br/>
-          บรรทัด <code>const ARTIFACT_URL = "..."</code>
-        </p>
-      </div>`;
-  } else {
-    const iframe = document.createElement("iframe");
-    iframe.src = ARTIFACT_URL;
-    iframe.title = "3-Agent Stock Hunter";
-    iframe.allow = "clipboard-write; clipboard-read";
-    iframe.allowFullscreen = true;
-    document.body.appendChild(iframe);
-  }
+  const iframe = document.createElement("iframe");
+  iframe.src = ARTIFACT_URL;
+  iframe.title = "3-Agent Stock Hunter";
+  iframe.allow = "clipboard-write; clipboard-read";
+  iframe.allowFullscreen = true;
+  document.body.appendChild(iframe);
 </script>
 
 </body>
