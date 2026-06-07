@@ -179,12 +179,21 @@
     document.getElementById("error").style.display = "none";
 
     try {
+      // ── Debug: ลองดึง root ก่อน
+      const rootR = await fetch(`${FB_URL}/.json?shallow=true&t=${Date.now()}`);
+      const rootData = await rootR.json();
+      console.log("Firebase root:", rootData);
+
       const r = await fetch(`${FB_URL}/history.json?t=${Date.now()}`);
       if (!r.ok) throw new Error("HTTP " + r.status);
       const data = await r.json();
+      console.log("Firebase /history:", data);
 
-      // Firebase อาจ return null หรือ error object
-      if (!data) throw new Error("ยังไม่มีประวัติการวิเคราะห์ใน Firebase");
+      if (!data) {
+        // แสดง root structure ช่วย debug
+        const rootInfo = rootData ? `โครงสร้าง Firebase root: ${JSON.stringify(rootData)}` : "ไม่สามารถเชื่อมต่อ Firebase ได้";
+        throw new Error(`Firebase /history = null\n${rootInfo}\n\nตรวจสอบ:\n1. Rules ใน Firebase Console ยังอนุญาต read ไหม\n2. มีการรันวิเคราะห์ผ่าน Artifact แล้วหรือยัง`);
+      }
       if (data.error) throw new Error("Firebase: " + data.error);
       if (typeof data !== "object") throw new Error("รูปแบบข้อมูลไม่ถูกต้อง");
 
