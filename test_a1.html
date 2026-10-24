@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<title>Test A1 - ชยกร</title>
+<style>
+  body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+  textarea { width: 100%; background: #222; color: #eee; border: 1px solid #444; padding: 8px; border-radius: 6px; }
+  button { padding: 10px 24px; background: #00b4ff; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 10px; }
+  #output { white-space: pre-wrap; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 16px; margin-top: 16px; min-height: 100px; line-height: 1.7; font-size: 13px; }
+  #meta { font-size: 11px; color: #888; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h2>🔍 Test Agent 1: ชยกร</h2>
+<div>
+  <label>Gemini API Key:</label><br/>
+  <input type="password" id="apiKey" placeholder="AIzaSy..." style="width:100%;background:#222;color:#eee;border:1px solid #444;padding:8px;border-radius:6px;margin-top:4px"/>
+</div>
+<div style="margin-top:12px">
+  <label>Model:</label><br/>
+  <select id="model" style="background:#222;color:#eee;border:1px solid #444;padding:8px;border-radius:6px;margin-top:4px">
+    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+    <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+  </select>
+  &nbsp;maxTokens: <input type="number" id="maxTok" value="2000" style="width:80px;background:#222;color:#eee;border:1px solid #444;padding:8px;border-radius:6px"/>
+</div>
+<br/>
+<button onclick="runTest()">▶ รัน A1</button>
+
+<div id="meta"></div>
+<div id="output">กด "รัน A1" เพื่อเริ่ม...</div>
+
+<script>
+async function runTest() {
+  const apiKey = document.getElementById("apiKey").value.trim();
+  const model = document.getElementById("model").value;
+  const maxTok = parseInt(document.getElementById("maxTok").value) || 2000;
+  const outputEl = document.getElementById("output");
+  const metaEl = document.getElementById("meta");
+
+  if (!apiKey) { alert("ใส่ API Key ก่อน"); return; }
+
+  outputEl.textContent = "⏳ กำลังส่ง request...";
+  metaEl.textContent = "";
+
+  const system = `คุณคือ "ชยกร" นักคัดกรองหุ้น SET ตอบภาษาไทยและใช้ Markdown ในการจัดหน้า
+วิเคราะห์ความน่าสนใจทางเทคนิคของหุ้นจากข้อมูลที่ให้`;
+
+  const user = `วิเคราะห์รอบ: รอบเย็น (หลังปิดตลาด) วันที่ 6 มิถุนายน 2569
+
+--- ข้อมูลหุ้นที่ผู้ใช้งานเลือกในระบบ ---
+🟢🟢 g2s (HA เขียว 2 แท่ง): TKN ฿4.22 (โน้ต: ยอดขายดี), SYNTEC ฿1.68 (โน้ต: Backlog หนาแน่น)
+🟢 g1s (HA เขียวแท่งแรก): AEONTS ฿95.25 (โน้ต: กำไรเริ่มฟื้น)
+🟢 g3s (กลุ่มอื่น/เฝ้าระวัง): FSMART ฿7.70, MINT ฿22.90
+
+--- หุ้นที่มี Volume Spike วันนี้ ---
+ไม่มีข้อมูล
+
+--- ประวัติวิเคราะห์รอบก่อนหน้า (Memory Layer) ---
+ไม่มีข้อมูลประวัติ`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
+  const startTime = Date.now();
+  let full = "";
+  let tokenCount = 0;
+
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: "user", parts: [{ text: user }] }],
+        generationConfig: {
+          maxOutputTokens: maxTok,
+          ...(model.startsWith("gemini-2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+        },
+      }),
+    });
+
+    if (!r.ok) {
+      const err = await r.json();
+      outputEl.textContent = "❌ Error: " + (err.error?.message || r.status);
+      return;
+    }
+
+    outputEl.textContent = "";
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const chunk = JSON.parse(line.slice(6));
+          const txt = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          const finishReason = chunk.candidates?.[0]?.finishReason;
+          full += txt;
+          outputEl.textContent = full;
+
+          if (finishReason && finishReason !== "STOP") {
+            metaEl.textContent = `⚠️ finishReason: ${finishReason}`;
+          }
+          if (chunk.usageMetadata) {
+            tokenCount = chunk.usageMetadata.candidatesTokenCount || 0;
+          }
+        } catch {}
+      }
+    }
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    metaEl.textContent = `✓ เสร็จแล้ว | ความยาว: ${full.length} chars | ~${tokenCount} output tokens | ใช้เวลา: ${elapsed}s | model: ${model}`;
+  } catch (e) {
+    outputEl.textContent = "❌ Fetch error: " + e.message;
+  }
+}
+</script>
+</body>
+</html>

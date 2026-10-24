@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<title>Test Ollama</title>
+<style>
+  body { background: #111; color: #eee; font-family: monospace; padding: 24px; max-width: 720px; margin: 0 auto; }
+  h2 { color: #a78bfa; margin-bottom: 20px; }
+  label { display: block; font-size: 11px; color: #888; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; margin-top: 12px; }
+  input, select, textarea { width: 100%; background: #1e1e1e; color: #eee; border: 1px solid #333; padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 13px; box-sizing: border-box; }
+  input:focus, textarea:focus { border-color: #a78bfa; outline: none; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button { margin-top: 16px; padding: 10px 28px; background: #7c3aed; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
+  button:hover { background: #6d28d9; }
+  button:disabled { background: #444; cursor: not-allowed; }
+  #output { white-space: pre-wrap; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 16px; margin-top: 16px; min-height: 80px; line-height: 1.7; font-size: 13px; }
+  #meta { font-size: 11px; color: #666; margin-top: 8px; }
+  .hint { font-size: 11px; color: #555; margin-top: 4px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 8px; }
+  .cloud { background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+  .local { background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+</style>
+</head>
+<body>
+<h2>🦙 Test Ollama API</h2>
+
+<div style="background:#1a1a2e;border:1px solid #2a2a4a;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;line-height:1.7;color:#aaa;">
+  ☁️ <strong style="color:#a78bfa">Cloud</strong> → URL: <code>https://api.ollama.com</code> + ใส่ API Key<br/>
+  🖥️ <strong style="color:#4ade80">Local</strong> → URL: <code>http://localhost:11434</code> + ไม่ต้องใส่ Key (รัน <code>ollama serve</code> ก่อน)
+</div>
+
+<label>🔗 Base URL
+  <span id="mode-badge" class="badge cloud">Cloud</span>
+</label>
+<input id="baseUrl" value="https://api.ollama.com" oninput="detectMode()"/>
+<div class="hint" id="url-hint">Cloud: api.ollama.com | Local: localhost:11434 | LM Studio: localhost:1234</div>
+
+<label>🔑 API Key (ว่างได้ถ้า Local)</label>
+<input type="password" id="apiKey" placeholder="ollama_... หรือว่างถ้ารันบนเครื่อง"/>
+
+<div class="row">
+  <div>
+    <label>🤖 Model</label>
+    <input id="model" value="gemma3" placeholder="gemma3, llama3.1, mistral"/>
+    <div class="hint">ดู models: <a href="https://ollama.com/models" target="_blank" style="color:#a78bfa">ollama.com/models</a></div>
+  </div>
+  <div>
+    <label>📝 Max Tokens</label>
+    <input type="number" id="maxTok" value="500"/>
+  </div>
+</div>
+
+<label>💬 Prompt ทดสอบ</label>
+<textarea id="prompt" rows="3">สวัสดี บอกชื่อตัวเองและความสามารถหลักสั้นๆ ใน 2-3 ประโยค</textarea>
+
+<button id="btn" onclick="runTest()">▶ ทดสอบ</button>
+
+<div id="meta"></div>
+<div id="output">กด "ทดสอบ" เพื่อเริ่ม...</div>
+
+<script>
+function detectMode() {
+  const url = document.getElementById("baseUrl").value;
+  const badge = document.getElementById("mode-badge");
+  const isLocal = url.includes("localhost") || url.includes("127.0.0.1");
+  badge.textContent = isLocal ? "Local" : "Cloud";
+  badge.className = "badge " + (isLocal ? "local" : "cloud");
+}
+
+async function runTest() {
+  const baseUrl  = document.getElementById("baseUrl").value.trim();
+  const apiKey   = document.getElementById("apiKey").value.trim();
+  const model    = document.getElementById("model").value.trim();
+  const maxTok   = parseInt(document.getElementById("maxTok").value) || 500;
+  const prompt   = document.getElementById("prompt").value.trim();
+  const outputEl = document.getElementById("output");
+  const metaEl   = document.getElementById("meta");
+  const btn      = document.getElementById("btn");
+
+  if (!baseUrl) { alert("ใส่ Base URL ก่อน"); return; }
+  if (!model)   { alert("ใส่ชื่อ Model ก่อน"); return; }
+
+  btn.disabled = true;
+  outputEl.textContent = "⏳ กำลังเชื่อมต่อ...";
+  metaEl.textContent = "";
+
+  const startTime = Date.now();
+  let full = "";
+  let finishReason = "";
+  let outputTokens = 0;
+
+  try {
+    const r = await fetch("./proxy_ollama.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        apiKey,
+        baseUrl,
+        payload: {
+          model,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: maxTok,
+          stream: true,
+        },
+      }),
+    });
+
+    if (!r.ok) {
+      let errMsg = `HTTP ${r.status}`;
+      try { const d = await r.json(); errMsg = d.error?.message || errMsg; } catch {}
+      outputEl.textContent = `❌ Error: ${errMsg}`;
+      btn.disabled = false;
+      return;
+    }
+
+    outputEl.textContent = "";
+    const reader  = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let rawLog = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        rawLog += line + "\n";
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (raw === "[DONE]") continue;
+        try {
+          const ev = JSON.parse(raw);
+          // handle error from proxy
+          if (ev.error) { full += "❌ API Error: " + ev.error; outputEl.textContent = full; continue; }
+          const txt = ev.choices?.[0]?.delta?.content || ev.choices?.[0]?.message?.content || "";
+          finishReason = ev.choices?.[0]?.finish_reason || finishReason;
+          full += txt;
+          outputEl.textContent = full;
+          if (ev.usage) outputTokens = ev.usage.completion_tokens || 0;
+        } catch {}
+      }
+    }
+
+    // Show raw if nothing parsed
+    if (!full) {
+      outputEl.textContent = "⚠️ ไม่มี content — raw response:\n\n" + (rawLog || "(ว่างเปล่า)");
+    }
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    const status = finishReason === "stop" ? "✓ จบปกติ (stop)" :
+                   finishReason === "length" ? "⚠️ โดน max_tokens ตัด (length)" :
+                   finishReason ? `finish: ${finishReason}` : "✓ เสร็จ";
+    metaEl.textContent = `${status} | ${full.length} chars | ${outputTokens} tokens | ${elapsed}s | model: ${model}`;
+
+  } catch (e) {
+    outputEl.textContent = "❌ Fetch error: " + e.message;
+  }
+
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>

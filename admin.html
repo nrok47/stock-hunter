@@ -222,16 +222,20 @@ async function saveToGist(gistId, ghToken, data){
 
 const PROVIDERS = {
   gemini: {
-    label:"Gemini 2.0 Flash", tag:"ฟรี 100% (แนะนำ)", tagColor:"#4ade80",
+    label:"Gemini (Cloud)", tag:"ฟรี 100% (แนะนำ)", tagColor:"#4ade80",
     placeholder:"AIzaSy...", storageKey:"gemini_key",
   },
+  ollama: {
+    label:"Ollama / LM Studio", tag:"รันบนเครื่องตัวเอง (ฟรี)", tagColor:"#a78bfa",
+    placeholder:"", storageKey:"",
+  },
   claude: {
-    label:"Claude Sonnet 4.5", tag:"มีค่าบริการ (ไม่แนะนำ)", tagColor:"#f59e0b",
+    label:"Claude API", tag:"มีค่าบริการ", tagColor:"#f59e0b",
     placeholder:"sk-ant-api03-...", storageKey:"claude_key",
   },
 };
 
-const GEMINI_MODELS = ["gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash"];
+const GEMINI_MODELS = ["gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"];
 const GEMINI_STREAM  = (m)=>`https://generativelanguage.googleapis.com/v1beta/models/${m}:streamGenerateContent?alt=sse`;
 const CLAUDE_API     = "https://api.anthropic.com/v1/messages";
 const CLAUDE_MODEL   = "claude-sonnet-4-5";
@@ -329,19 +333,30 @@ function saveHistory(dateStr, boss){
   localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0,10)));
 }
 
-async function streamGemini(apiKey, system, user, onChunk, maxTok=1200, model="gemini-2.0-flash"){
+async function streamGemini(apiKey, system, user, onChunk, maxTok=1200, model="gemini-2.0-flash", retryCount=0){
   const r = await fetch(GEMINI_STREAM(model), {
     method:"POST",
     headers:{"Content-Type":"application/json","x-goog-api-key":apiKey},
     body: JSON.stringify({
       systemInstruction:{parts:[{text:system}]},
       contents:[{role:"user",parts:[{text:user}]}],
-      generationConfig:{maxOutputTokens:maxTok},
+      generationConfig:{
+        maxOutputTokens:maxTok,
+        ...(model.startsWith("gemini-2.5") ? {thinkingConfig:{thinkingBudget:0}} : {}),
+      },
     }),
   });
   if(!r.ok){
     let msg = "HTTP "+r.status;
     try{ const d=await r.json(); msg=d.error?.message||msg; }catch{}
+    // Auto-retry on rate limit (max 3 retries)
+    if(r.status===429 && retryCount < 3){
+      const match = msg.match(/retry in ([\d.]+)s/i);
+      const waitSec = match ? Math.ceil(parseFloat(match[1])) + 3 : 20;
+      onChunk(`⏳ โควต้าเต็ม — รอ ${waitSec} วินาที แล้ว retry อัตโนมัติ (${retryCount+1}/3)...`);
+      await new Promise(res => setTimeout(res, waitSec * 1000));
+      return streamGemini(apiKey, system, user, onChunk, maxTok, model, retryCount+1);
+    }
     throw new Error(msg);
   }
   const reader  = r.body.getReader();
@@ -410,6 +425,49 @@ async function streamClaude(apiKey, system, user, onChunk, maxTok=1200){
   return full.trim() || "⚠️ ไม่มีผลลัพธ์";
 }
 
+async function streamLocalAI(baseUrl, model, system, user, onChunk, maxTok=1200, apiKey=""){
+  const url = `${baseUrl.replace(/\/+$/,"")}/v1/chat/completions`;
+  const headers = {"Content-Type":"application/json"};
+  if(apiKey.trim()) headers["Authorization"] = `Bearer ${apiKey.trim()}`;
+  const r = await fetch(url, {
+    method:"POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      messages:[{role:"system",content:system},{role:"user",content:user}],
+      max_tokens: maxTok,
+      stream: true,
+    }),
+  });
+  if(!r.ok){
+    let msg = "HTTP "+r.status;
+    try{ const d=await r.json(); msg=d.error?.message||msg; }catch{}
+    throw new Error(msg);
+  }
+  const reader  = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf="", full="";
+  while(true){
+    const {done,value} = await reader.read();
+    if(done) break;
+    buf += decoder.decode(value,{stream:true});
+    const lines = buf.split("\n");
+    buf = lines.pop();
+    for(const line of lines){
+      if(!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if(raw==="[DONE]") continue;
+      try{
+        const ev = JSON.parse(raw);
+        const txt = ev.choices?.[0]?.delta?.content || "";
+        full += txt;
+        onChunk(full);
+      }catch{}
+    }
+  }
+  return full.trim() || "⚠️ ไม่มีผลลัพธ์";
+}
+
 function Cursor(){ return <span style={{display:"inline-block",width:7,height:13,background:"rgba(255,255,255,0.6)",marginLeft:1,verticalAlign:"middle",animation:"blink 0.8s step-end infinite"}}/>; }
 
 function Dots({color}){
@@ -458,7 +516,7 @@ function AgentCard({ag,status,output,step,onCopy,copied}){
       {output&&<div style={{
         background:"rgba(0,0,0,0.3)",borderRadius:10,padding:"14px",
         fontSize:13.5,lineHeight:1.8,color:"rgba(255,255,255,0.9)",whiteSpace:"pre-wrap",
-        maxHeight:280,overflowY:"auto",border:"1px solid rgba(255,255,255,0.03)"
+        maxHeight:"none",border:"1px solid rgba(255,255,255,0.03)"
       }}>
         {output}{isRun&&<Cursor/>}
       </div>}
@@ -481,6 +539,9 @@ function App(){
   const [ghToken, setGhToken] = useState(()=>localStorage.getItem("gh_token")||"");
   const [tokenSave, setTokenSave] = useState(()=>localStorage.getItem("token_save")!=="0");
   const [geminiModel, setGeminiModel] = useState(()=>localStorage.getItem("gemini_model")||"gemini-2.0-flash");
+  const [ollamaUrl, setOllamaUrl] = useState(()=>localStorage.getItem("ollama_url")||"https://api.ollama.com");
+  const [ollamaModel, setOllamaModel] = useState(()=>localStorage.getItem("ollama_model")||"gemma3");
+  const [ollamaKey, setOllamaKey] = useState(()=>localStorage.getItem("ollama_key")||"");
   
   // Diverse Inputs
   const [volumeSpikes, setVolumeSpikes] = useState(()=>localStorage.getItem("volume_spikes")||"");
@@ -587,7 +648,9 @@ function App(){
   };
 
   const callAI = (sys,usr,onChunk,tok)=>
-    provider==="claude" ? streamClaude(apiKey,sys,usr,onChunk,tok) : streamGemini(apiKey,sys,usr,onChunk,tok,geminiModel);
+    provider==="claude"  ? streamClaude(apiKey,sys,usr,onChunk,tok) :
+    provider==="ollama"  ? streamLocalAI(ollamaUrl,ollamaModel,sys,usr,onChunk,tok,ollamaKey) :
+    streamGemini(apiKey,sys,usr,onChunk,tok,geminiModel);
 
   // Auto-run Timer effect
   useEffect(() => {
@@ -740,12 +803,13 @@ ${volumeSpikes || "ไม่มีข้อมูล"}
 
 --- ประวัติวิเคราะห์รอบก่อนหน้า (Memory Layer) ---
 ${memoryContext}`,
-        (chunk)=>setOutput(p=>({...p,chayakorn:chunk}))
+        (chunk)=>setOutput(p=>({...p,chayakorn:chunk})),
+        2000
       );
-      setStatus(p=>({...p,chayakorn:"done",watsaran:"running"}));
-      
-      const a1symbols = tokenSave ? extractSymbols(a1).join(", ") : null;
-      
+      setStatus(p=>({...p,chayakorn:"done"}));
+      await new Promise(r => setTimeout(r, 15000));
+      setStatus(p=>({...p,watsaran:"running"}));
+
       // Agent 2: วศรัญ
       const a2 = await callAI(
         `คุณคือ "วศรัญ" นักวิเคราะห์ประเด็นข่าวและปัจจัยสนับสนุน (Catalyst Analyst) ของหุ้นไทย ตอบภาษาไทย
@@ -762,7 +826,9 @@ ${memoryContext}`,
         `ผลการคัดกรองจากชยกร:\n${a1}\n\n--- ข่าวสารและ Catalyst วันนี้ ---\n${marketNews || "ไม่มีประเด็นข่าวพิเศษวันนี้"}`,
         (chunk)=>setOutput(p=>({...p,watsaran:chunk}))
       );
-      setStatus(p=>({...p,watsaran:"done",boss:"running"}));
+      setStatus(p=>({...p,watsaran:"done"}));
+      await new Promise(r => setTimeout(r, 15000));
+      setStatus(p=>({...p,boss:"running"}));
       
       // Agent 3: บอส ฒ
       const a3 = await callAI(
@@ -792,9 +858,7 @@ ${memoryContext}`,
 - **คำแนะนำการลงทุน (Position Sizing):**
   - เงินลงทุนแนะนำ: **[จำนวนเงิน] บาท** (ประมาณ **[จำนวนหุ้น] หุ้น**)
   - ความเสี่ยงสูงสุดต่อพอร์ต: **[เปอร์เซ็นต์]% (เป็นเงิน [จำนวนเงิน] บาท)**`,
-        tokenSave
-          ? `หุ้นที่ผ่านการคัดเลือก: ${a1symbols}\nวศรัญ:\n${a2}`
-          : `ชยกร:\n${a1}\nวศรัญ:\n${a2}`,
+        `ชยกร:\n${a1}\nวศรัญ:\n${a2}`,
         (chunk)=>setOutput(p=>({...p,boss:chunk}))
       );
       setStatus(p=>({...p,boss:"done"}));
@@ -1258,7 +1322,7 @@ ${memoryContext}`,
               ))}
             </div>
 
-            <div style={{ marginBottom: 14 }}>
+            {provider !== "ollama" && <div style={{ marginBottom: 14 }}>
               <label className="input-label">🔑 API KEY สำหรับ {prov.label.toUpperCase()}</label>
               <input type="password" value={apiKey} onChange={e=>saveKey(e.target.value)} placeholder={prov.placeholder} className="text-field"/>
               {provider === "gemini" && (
@@ -1266,7 +1330,7 @@ ${memoryContext}`,
                   💡 สมัครและรับ API Key ของ Gemini <strong>ฟรี 100%</strong> ได้ที่ <a href="https://aistudio.google.com/" target="_blank" style={{ color: "#00d4ff", textDecoration: "underline", fontWeight: "bold" }}>Google AI Studio</a> (รันฟรีไม่มีค่าใช้จ่ายตลอดชีพในการใช้งานทั่วไป)
                 </div>
               )}
-            </div>
+            </div>}
 
             {provider === "gemini" && (
               <div style={{ marginBottom: 14 }}>
@@ -1274,6 +1338,34 @@ ${memoryContext}`,
                 <select value={geminiModel} onChange={e=>saveGeminiModel(e.target.value)} className="text-field" style={{ background: "#050a14" }}>
                   {GEMINI_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
+              </div>
+            )}
+
+            {provider === "ollama" && (
+              <div style={{ marginBottom: 14, padding: "14px", background: "rgba(167,139,250,0.05)", borderRadius: 10, border: "1px solid rgba(167,139,250,0.2)" }}>
+                <div style={{ fontSize: 12, color: "#a78bfa", marginBottom: 12, lineHeight: 1.6 }}>
+                  ☁️ <strong>Cloud:</strong> ใช้ <a href="https://ollama.com/settings/keys" target="_blank" style={{color:"#00d4ff"}}>ollama.com/settings/keys</a> → URL: <code style={{background:"rgba(255,255,255,0.08)",padding:"1px 5px",borderRadius:3}}>https://api.ollama.com</code><br/>
+                  🖥️ <strong>Local:</strong> ติดตั้ง Ollama บนเครื่อง → URL: <code style={{background:"rgba(255,255,255,0.08)",padding:"1px 5px",borderRadius:3}}>http://localhost:11434</code> (ไม่ต้องมี Key)
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <label className="input-label">🔑 API Key (ถ้าใช้ Cloud — ว่างได้ถ้ารันบนเครื่อง)</label>
+                  <input type="password" value={ollamaKey} onChange={e=>{ setOllamaKey(e.target.value); localStorage.setItem("ollama_key", e.target.value); }}
+                    className="text-field" placeholder="ollama_..."/>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label className="input-label">🔗 Base URL</label>
+                    <input value={ollamaUrl} onChange={e=>{ setOllamaUrl(e.target.value); localStorage.setItem("ollama_url", e.target.value); }}
+                      className="text-field" placeholder="https://api.ollama.com"/>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",marginTop:4}}>Local LM Studio ใช้ port 1234</div>
+                  </div>
+                  <div>
+                    <label className="input-label">🤖 ชื่อ Model</label>
+                    <input value={ollamaModel} onChange={e=>{ setOllamaModel(e.target.value); localStorage.setItem("ollama_model", e.target.value); }}
+                      className="text-field" placeholder="gemma3, llama3.1, mistral"/>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",marginTop:4}}>ดู models ที่รองรับที่ ollama.com/models</div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1399,6 +1491,74 @@ ${memoryContext}`,
           )}
         </div>
       )}
+
+      {/* ==================== DEV NOTES ==================== */}
+      <div style={{ marginTop: 32, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 24 }}>
+        <div style={{ fontSize: 10, fontFamily: "'Share Tech Mono', monospace", color: "rgba(255,255,255,0.2)", letterSpacing: 2, marginBottom: 14 }}>
+          // DEV NOTES — ROADMAP & STATUS
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+
+          {/* Done */}
+          <div style={{ background: "rgba(74,222,128,0.04)", border: "1px solid rgba(74,222,128,0.12)", borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ color: "#4ade80", fontWeight: 700, fontSize: 12, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+              <span>✓</span> เสร็จแล้ว
+            </div>
+            {[
+              "3-Agent pipeline (ชยกร → วศรัญ → บอส ฒ)",
+              "Gemini streaming + auto-retry rate limit",
+              "Gemini 2.5 Flash: ปิด thinking mode (thinkingBudget:0)",
+              "Watchlist Manager — เพิ่ม/ลบ/toggle หุ้น",
+              "Hoonstation scraper (ดึง HA green อัตโนมัติ)",
+              "Memory Layer — โหลดผลรอบก่อนจาก Gist",
+              "Scheduler — auto-run รอบเช้า/เย็น",
+              "Position Sizing Calculator (Risk % of portfolio)",
+              "GitHub Gist publish + Public View page",
+              "Claude API provider",
+              "Ollama / LM Studio provider (local & cloud)",
+            ].map(t => (
+              <div key={t} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 5, paddingLeft: 10, borderLeft: "2px solid rgba(74,222,128,0.25)" }}>{t}</div>
+            ))}
+          </div>
+
+          {/* In progress / Todo */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ background: "rgba(245,158,11,0.04)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ color: "#f59e0b", fontWeight: 700, fontSize: 12, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                <span>⚙</span> กำลังพัฒนา
+              </div>
+              {[
+                "Ollama Cloud auth — รอยืนยัน API format จาก Ollama",
+                "Ollama Local — ต้องติดตั้ง ollama.com บนเครื่องก่อน",
+                "LM Studio — รอทดสอบ port 1234 local",
+              ].map(t => (
+                <div key={t} style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 5, paddingLeft: 10, borderLeft: "2px solid rgba(245,158,11,0.3)" }}>{t}</div>
+              ))}
+            </div>
+
+            <div style={{ background: "rgba(0,212,255,0.04)", border: "1px solid rgba(0,212,255,0.12)", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ color: "#00d4ff", fontWeight: 700, fontSize: 12, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                <span>◎</span> แผนถัดไป
+              </div>
+              {[
+                "Export ผลวิเคราะห์เป็น PDF / LINE message",
+                "Portfolio tracker — ติดตามผล entry จริง",
+                "Price alert — แจ้งเตือนเมื่อหุ้นถึง entry/stop",
+                "Chart mini preview ใน watchlist",
+                "Multi-session comparison (เช้า vs เย็น)",
+              ].map(t => (
+                <div key={t} style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 5, paddingLeft: 10, borderLeft: "2px solid rgba(0,212,255,0.2)" }}>{t}</div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: 20, fontSize: 10, color: "rgba(255,255,255,0.1)", fontFamily: "monospace" }}>
+          3-Agent Stock Hunter v0.4 · built with Gemini + Claude + Ollama · by CK
+        </div>
+      </div>
 
     </div>
   );
